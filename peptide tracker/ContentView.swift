@@ -68,15 +68,6 @@ struct ContentView: View {
 
 // MARK: - Stubs (replaced in later tasks)
 
-@MainActor
-final class DashboardViewModel: ObservableObject {
-    init(peptideRepo: PeptideRepository, vialRepo: VialRepository, stockRepo: StockRepository, scheduleRepo: ScheduleRepository) {}
-}
-struct DashboardView: View {
-    let viewModel: DashboardViewModel
-    var body: some View { Text("Dashboard").preferredColorScheme(.dark) }
-}
-
 struct InventoryView: View {
     let userId: String
     var body: some View { Text("Inventory").preferredColorScheme(.dark) }

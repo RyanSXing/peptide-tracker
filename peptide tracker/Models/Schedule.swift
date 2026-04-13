@@ -37,9 +37,9 @@ struct Schedule: Codable, Identifiable {
         let cal = Calendar.current
         switch frequency {
         case .daily:
-            return cal.date(byAdding: .day, value: 1, to: date)!
+            return timeOfDay(on: cal.date(byAdding: .day, value: 1, to: date)!)
         case .eod:
-            return cal.date(byAdding: .day, value: 2, to: date)!
+            return timeOfDay(on: cal.date(byAdding: .day, value: 2, to: date)!)
         case .threeTimesWeek:
             var next = cal.date(byAdding: .day, value: 1, to: date)!
             let valid: Set<Int> = [2, 4, 6] // Mon=2, Wed=4, Fri=6

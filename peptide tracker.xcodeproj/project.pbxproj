@@ -6,8 +6,25 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		D7C9262F2F8CA13100E6370F /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = D7C9262E2F8CA13100E6370F /* FirebaseAuth */; };
+		D7C926312F8CA13100E6370F /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = D7C926302F8CA13100E6370F /* FirebaseFirestore */; };
+		D7C926332F8CA13100E6370F /* FirebaseFirestoreCombine-Community in Frameworks */ = {isa = PBXBuildFile; productRef = D7C926322F8CA13100E6370F /* FirebaseFirestoreCombine-Community */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		D7C926442F8CA42100E6370F /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D7C926172F8C953300E6370F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D7C9261E2F8C953300E6370F;
+			remoteInfo = "peptide tracker";
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		D7C9261F2F8C953300E6370F /* peptide tracker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "peptide tracker.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		D7C926402F8CA42100E6370F /* peptide trackerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "peptide trackerTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -16,10 +33,25 @@
 			path = "peptide tracker";
 			sourceTree = "<group>";
 		};
+		D7C926412F8CA42100E6370F /* peptide trackerTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "peptide trackerTests";
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		D7C9261C2F8C953300E6370F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D7C926332F8CA13100E6370F /* FirebaseFirestoreCombine-Community in Frameworks */,
+				D7C9262F2F8CA13100E6370F /* FirebaseAuth in Frameworks */,
+				D7C926312F8CA13100E6370F /* FirebaseFirestore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D7C9263D2F8CA42100E6370F /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -33,6 +65,7 @@
 			isa = PBXGroup;
 			children = (
 				D7C926212F8C953300E6370F /* peptide tracker */,
+				D7C926412F8CA42100E6370F /* peptide trackerTests */,
 				D7C926202F8C953300E6370F /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,6 +74,7 @@
 			isa = PBXGroup;
 			children = (
 				D7C9261F2F8C953300E6370F /* peptide tracker.app */,
+				D7C926402F8CA42100E6370F /* peptide trackerTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -65,10 +99,36 @@
 			);
 			name = "peptide tracker";
 			packageProductDependencies = (
+				D7C9262E2F8CA13100E6370F /* FirebaseAuth */,
+				D7C926302F8CA13100E6370F /* FirebaseFirestore */,
+				D7C926322F8CA13100E6370F /* FirebaseFirestoreCombine-Community */,
 			);
 			productName = "peptide tracker";
 			productReference = D7C9261F2F8C953300E6370F /* peptide tracker.app */;
 			productType = "com.apple.product-type.application";
+		};
+		D7C9263F2F8CA42100E6370F /* peptide trackerTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D7C926462F8CA42100E6370F /* Build configuration list for PBXNativeTarget "peptide trackerTests" */;
+			buildPhases = (
+				D7C9263C2F8CA42100E6370F /* Sources */,
+				D7C9263D2F8CA42100E6370F /* Frameworks */,
+				D7C9263E2F8CA42100E6370F /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				D7C926452F8CA42100E6370F /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				D7C926412F8CA42100E6370F /* peptide trackerTests */,
+			);
+			name = "peptide trackerTests";
+			packageProductDependencies = (
+			);
+			productName = "peptide trackerTests";
+			productReference = D7C926402F8CA42100E6370F /* peptide trackerTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
 
@@ -83,6 +143,10 @@
 					D7C9261E2F8C953300E6370F = {
 						CreatedOnToolsVersion = 26.4;
 					};
+					D7C9263F2F8CA42100E6370F = {
+						CreatedOnToolsVersion = 26.4;
+						TestTargetID = D7C9261E2F8C953300E6370F;
+					};
 				};
 			};
 			buildConfigurationList = D7C9261A2F8C953300E6370F /* Build configuration list for PBXProject "peptide tracker" */;
@@ -94,18 +158,29 @@
 			);
 			mainGroup = D7C926162F8C953300E6370F;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				D7C9262D2F8CA13100E6370F /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = D7C926202F8C953300E6370F /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
 				D7C9261E2F8C953300E6370F /* peptide tracker */,
+				D7C9263F2F8CA42100E6370F /* peptide trackerTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		D7C9261D2F8C953300E6370F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D7C9263E2F8CA42100E6370F /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -122,7 +197,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		D7C9263C2F8CA42100E6370F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		D7C926452F8CA42100E6370F /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = D7C9261E2F8C953300E6370F /* peptide tracker */;
+			targetProxy = D7C926442F8CA42100E6370F /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		D7C926282F8C953500E6370F /* Debug */ = {
@@ -323,6 +413,53 @@
 			};
 			name = Release;
 		};
+		D7C926472F8CA42100E6370F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "Xing-corp.peptide-trackerTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = xros;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 7;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/peptide tracker.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/peptide tracker";
+				XROS_DEPLOYMENT_TARGET = 26.4;
+			};
+			name = Debug;
+		};
+		D7C926482F8CA42100E6370F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "Xing-corp.peptide-trackerTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = xros;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 7;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/peptide tracker.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/peptide tracker";
+				VALIDATE_PRODUCT = YES;
+				XROS_DEPLOYMENT_TARGET = 26.4;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -344,7 +481,45 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		D7C926462F8CA42100E6370F /* Build configuration list for PBXNativeTarget "peptide trackerTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D7C926472F8CA42100E6370F /* Debug */,
+				D7C926482F8CA42100E6370F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		D7C9262D2F8CA13100E6370F /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.12.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		D7C9262E2F8CA13100E6370F /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D7C9262D2F8CA13100E6370F /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+		D7C926302F8CA13100E6370F /* FirebaseFirestore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D7C9262D2F8CA13100E6370F /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFirestore;
+		};
+		D7C926322F8CA13100E6370F /* FirebaseFirestoreCombine-Community */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D7C9262D2F8CA13100E6370F /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = "FirebaseFirestoreCombine-Community";
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = D7C926172F8C953300E6370F /* Project object */;
 }

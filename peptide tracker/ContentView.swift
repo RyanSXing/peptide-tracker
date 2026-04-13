@@ -1,24 +1,13 @@
-//
-//  ContentView.swift
-//  peptide tracker
-//
-//  Created by Ryan Xing on 4/12/26.
-//
-
 import SwiftUI
 
 struct ContentView: View {
+    let userId: String
+
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
-        }
-        .padding()
+        Text("Hello, world — user: \(userId)")
     }
 }
 
 #Preview {
-    ContentView()
+    ContentView(userId: "preview")
 }

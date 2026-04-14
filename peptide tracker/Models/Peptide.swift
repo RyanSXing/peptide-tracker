@@ -1,5 +1,4 @@
 import FirebaseFirestore
-import FirebaseFirestoreSwift
 
 enum DoseUnit: String, Codable, CaseIterable, Identifiable {
     case mcg, mg, iu = "IU"

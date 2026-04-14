@@ -21,7 +21,7 @@ struct LogRowView: View {
                 Text("\(log.doseAmount, specifier: "%.0f") \(log.doseUnit.label)")
                     .font(.subheadline)
                     .foregroundColor(.white)
-                Text(log.timestamp.formatted(as: "MMM d, h:mm a"))
+                Text("\(log.timestamp.formatted(as: .medium)) \(log.timestamp.shortTime)")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }

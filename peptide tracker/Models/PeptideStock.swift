@@ -1,5 +1,4 @@
 import FirebaseFirestore
-import FirebaseFirestoreSwift
 
 struct PeptideStock: Codable, Identifiable {
     @DocumentID var id: String?

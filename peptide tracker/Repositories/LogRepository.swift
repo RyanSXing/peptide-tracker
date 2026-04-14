@@ -1,5 +1,4 @@
 import FirebaseFirestore
-import FirebaseFirestoreSwift
 
 final class LogRepository {
     private let collection: CollectionReference

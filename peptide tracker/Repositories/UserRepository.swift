@@ -1,5 +1,4 @@
 import FirebaseFirestore
-import FirebaseFirestoreSwift
 
 final class UserRepository {
     private let docRef: DocumentReference

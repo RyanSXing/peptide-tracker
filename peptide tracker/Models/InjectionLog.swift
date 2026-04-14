@@ -1,5 +1,4 @@
 import FirebaseFirestore
-import FirebaseFirestoreSwift
 
 struct InjectionLog: Codable, Identifiable {
     @DocumentID var id: String?

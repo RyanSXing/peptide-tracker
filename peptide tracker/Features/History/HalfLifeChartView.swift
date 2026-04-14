@@ -8,7 +8,7 @@ struct HalfLifeChartView: View {
     private struct ChartPoint: Identifiable {
         let id = UUID()
         let peptideName: String
-        let hour: Double
+        let date: Date
         let concentration: Double
     }
 
@@ -16,20 +16,19 @@ struct HalfLifeChartView: View {
         var points: [ChartPoint] = []
         for peptide in peptides {
             guard peptide.halfLifeHours > 0 else { continue }
-            let recentLog = logs
-                .filter { $0.peptideId == peptide.id }
-                .sorted { $0.timestamp > $1.timestamp }
-                .first
-            guard let log = recentLog else { continue }
+            let peptideLogs = logs.filter { $0.peptideId == peptide.id }
+            guard !peptideLogs.isEmpty else { continue }
+            let doses = peptideLogs.map { (amount: $0.doseAmount, timestamp: $0.timestamp) }
+            let days = max(1, Int(peptide.halfLifeHours * 4 / 24))
             let data = HalfLifeService.chartData(
-                doseMcg: log.doseAmount,
+                doses: doses,
                 halfLifeHours: peptide.halfLifeHours,
-                hoursToPlot: peptide.halfLifeHours * 4
+                days: days
             )
             for dp in data {
                 points.append(ChartPoint(
                     peptideName: peptide.name,
-                    hour: dp.hourOffset,
+                    date: dp.date,
                     concentration: dp.concentration
                 ))
             }
@@ -48,13 +47,13 @@ struct HalfLifeChartView: View {
             Chart {
                 ForEach(chartData) { point in
                     LineMark(
-                        x: .value("Hours", point.hour),
+                        x: .value("Time", point.date),
                         y: .value("mcg", point.concentration)
                     )
                     .foregroundStyle(by: .value("Peptide", point.peptideName))
                 }
             }
-            .chartXAxisLabel("Hours since dose")
+            .chartXAxisLabel("Time")
             .chartYAxisLabel("Concentration (mcg)")
             .frame(height: 200)
             .padding()

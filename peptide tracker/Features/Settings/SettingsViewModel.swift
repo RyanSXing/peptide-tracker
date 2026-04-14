@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 import FirebaseFirestore
 
 @MainActor
@@ -40,13 +41,15 @@ final class SettingsViewModel: ObservableObject {
             name: name,
             halfLifeHours: halfLifeHours,
             defaultDoseAmount: defaultDoseAmount,
-            defaultDoseUnit: defaultDoseUnit
+            defaultDoseUnit: defaultDoseUnit,
+            createdAt: Date()
         )
         try await peptideRepo.add(peptide)
     }
 
     func deletePeptide(_ peptide: Peptide) async throws {
-        try await peptideRepo.delete(peptide)
+        guard let id = peptide.id else { return }
+        try await peptideRepo.delete(id: id)
     }
 
     func saveSchedule(for peptide: Peptide, frequency: DoseFrequency, doseAmount: Double, doseUnit: DoseUnit, timeSeconds: Int) async throws {
@@ -60,13 +63,14 @@ final class SettingsViewModel: ObservableObject {
         }
         let sched = Schedule(
             peptideId: peptideId,
-            frequency: frequency,
             doseAmount: doseAmount,
             doseUnit: doseUnit,
-            startDate: Date(),
+            frequency: frequency,
             timeOfDaySeconds: timeSeconds,
-            notificationIds: [],
-            isActive: true
+            startDate: Date(),
+            endDate: nil,
+            isActive: true,
+            notificationIds: []
         )
         let schedId = try await scheduleRepo.add(sched)
         // Schedule notifications

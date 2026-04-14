@@ -1,5 +1,4 @@
 import FirebaseFirestore
-import FirebaseFirestoreSwift
 
 struct ActiveVial: Codable, Identifiable {
     @DocumentID var id: String?

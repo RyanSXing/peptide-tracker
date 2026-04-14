@@ -1,5 +1,4 @@
 import FirebaseFirestore
-import FirebaseFirestoreSwift
 
 final class VialRepository {
     private let collection: CollectionReference
@@ -24,13 +23,8 @@ final class VialRepository {
     }
 
     func decrementDose(vialId: String) async throws {
-        let ref = collection.document(vialId)
-        try await Firestore.firestore().runTransaction { transaction, _ in
-            let snap = try transaction.getDocument(ref)
-            let current = snap.data()?["dosesRemaining"] as? Int ?? 0
-            transaction.updateData(["dosesRemaining": max(0, current - 1)], forDocument: ref)
-            return nil
-        }
+        try await collection.document(vialId)
+            .updateData(["dosesRemaining": FieldValue.increment(Int64(-1))])
     }
 
     func listen(onChange: @escaping ([ActiveVial]) -> Void) -> ListenerRegistration {

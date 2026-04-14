@@ -27,9 +27,9 @@ struct ReconstitutionView: View {
                     // Results
                     if let result = viewModel.result {
                         VStack(spacing: 12) {
-                            calcRow(label: "Concentration", value: "\(result.concentrationMcgPerML, specifier: "%.0f") mcg/mL")
-                            calcRow(label: "Draw per dose", value: "\(result.drawVolumeML, specifier: "%.3f") mL")
-                            calcRow(label: "Syringe units (100u)", value: "\(result.syringeUnits, specifier: "%.1f") units")
+                            calcRow(label: "Concentration", value: String(format: "%.0f mcg/mL", result.concentrationMcgPerML))
+                            calcRow(label: "Draw per dose", value: String(format: "%.3f mL", result.drawVolumeML))
+                            calcRow(label: "Syringe units (100u)", value: String(format: "%.1f units", result.syringeUnits))
                         }
                         .padding()
                         .background(Color(red: 0.12, green: 0.14, blue: 0.2))

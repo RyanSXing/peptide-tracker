@@ -1,5 +1,4 @@
 import FirebaseFirestore
-import FirebaseFirestoreSwift
 
 final class PeptideRepository {
     private let collection: CollectionReference

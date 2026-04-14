@@ -1,5 +1,4 @@
 import FirebaseFirestore
-import FirebaseFirestoreSwift
 
 final class StockRepository {
     private let collection: CollectionReference

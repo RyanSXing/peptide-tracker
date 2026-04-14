@@ -1,5 +1,4 @@
 import FirebaseFirestore
-import FirebaseFirestoreSwift
 
 final class ScheduleRepository {
     private let collection: CollectionReference

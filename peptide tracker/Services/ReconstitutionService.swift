@@ -1,3 +1,5 @@
+import Foundation
+
 enum ReconstitutionService {
     struct Result {
         let concentrationMcgPerML: Double

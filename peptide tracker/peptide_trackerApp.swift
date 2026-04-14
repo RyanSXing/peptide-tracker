@@ -13,6 +13,9 @@ struct peptide_trackerApp: App {
             Group {
                 if let userId = firebase.userId {
                     ContentView(userId: userId)
+                        .task {
+                            _ = await NotificationService.requestPermission()
+                        }
                 } else {
                     ProgressView("Setting up...")
                         .task {

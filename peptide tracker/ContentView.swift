@@ -66,41 +66,6 @@ struct ContentView: View {
     }
 }
 
-// MARK: - Stubs (replaced in later tasks)
-
-struct InventoryView: View {
-    let userId: String
-    var body: some View { Text("Inventory").preferredColorScheme(.dark) }
-}
-
-@MainActor
-final class HistoryViewModel: ObservableObject {
-    init(peptideRepo: PeptideRepository, logRepo: LogRepository) {}
-}
-struct HistoryView: View {
-    let viewModel: HistoryViewModel
-    var body: some View { Text("History").preferredColorScheme(.dark) }
-}
-
-@MainActor
-final class SettingsViewModel: ObservableObject {
-    init(peptideRepo: PeptideRepository, scheduleRepo: ScheduleRepository, userRepo: UserRepository) {}
-}
-struct SettingsView: View {
-    let viewModel: SettingsViewModel
-    var body: some View { Text("Settings").preferredColorScheme(.dark) }
-}
-
-@MainActor
-final class InjectViewModel: ObservableObject {
-    init(peptideRepo: PeptideRepository, vialRepo: VialRepository, logRepo: LogRepository, scheduleRepo: ScheduleRepository) {}
-}
-struct InjectSheetView: View {
-    let viewModel: InjectViewModel
-    @Binding var isPresented: Bool
-    var body: some View { Text("Inject").preferredColorScheme(.dark) }
-}
-
 #Preview {
     ContentView(userId: "preview-user")
 }

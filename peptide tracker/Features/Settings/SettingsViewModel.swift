@@ -12,13 +12,16 @@ final class SettingsViewModel: ObservableObject {
     private let peptideRepo: PeptideRepository
     private let scheduleRepo: ScheduleRepository
     private let userRepo: UserRepository
+    private let userId: String
     private var listeners: [ListenerRegistration] = []
 
     init(
+        userId: String,
         peptideRepo: PeptideRepository,
         scheduleRepo: ScheduleRepository,
         userRepo: UserRepository
     ) {
+        self.userId = userId
         self.peptideRepo = peptideRepo
         self.scheduleRepo = scheduleRepo
         self.userRepo = userRepo
@@ -50,6 +53,17 @@ final class SettingsViewModel: ObservableObject {
     func deletePeptide(_ peptide: Peptide) async throws {
         guard let id = peptide.id else { return }
         try await peptideRepo.delete(id: id)
+    }
+
+    func clearAllData() async throws {
+        let db = Firestore.firestore().collection("users").document(userId)
+        for colName in ["peptides", "peptideStock", "activeVials", "injectionLogs", "schedules"] {
+            let snap = try await db.collection(colName).getDocuments()
+            for doc in snap.documents {
+                try await doc.reference.delete()
+            }
+        }
+        try await db.delete()
     }
 
     func saveSchedule(for peptide: Peptide, frequency: DoseFrequency, doseAmount: Double, doseUnit: DoseUnit, timeSeconds: Int) async throws {

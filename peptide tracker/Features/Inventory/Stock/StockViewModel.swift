@@ -6,18 +6,22 @@ import FirebaseFirestore
 final class StockViewModel: ObservableObject {
     @Published var stockItems: [PeptideStock] = []
     @Published var peptides: [Peptide] = []
+    @Published var blends: [Blend] = []
     private let stockRepo: StockRepository
     private let peptideRepo: PeptideRepository
+    private let blendRepo: BlendRepository
     private var listeners: [ListenerRegistration] = []
 
-    init(stockRepo: StockRepository, peptideRepo: PeptideRepository) {
+    init(stockRepo: StockRepository, peptideRepo: PeptideRepository, blendRepo: BlendRepository) {
         self.stockRepo = stockRepo
         self.peptideRepo = peptideRepo
+        self.blendRepo = blendRepo
     }
 
     func startListening() {
         listeners.append(stockRepo.listen { [weak self] in self?.stockItems = $0 })
         listeners.append(peptideRepo.listen { [weak self] in self?.peptides = $0 })
+        listeners.append(blendRepo.listen { [weak self] in self?.blends = $0 })
     }
 
     func stopListening() { listeners.forEach { $0.remove() }; listeners.removeAll() }
@@ -33,5 +37,46 @@ final class StockViewModel: ObservableObject {
     func delete(_ stock: PeptideStock) async throws {
         guard let id = stock.id else { return }
         try await stockRepo.delete(id: id)
+    }
+
+    func stockCount(for peptide: Peptide) -> Int {
+        stockItems.filter { $0.peptideId == peptide.id }.reduce(0) { $0 + $1.quantityOnHand }
+    }
+
+    func primaryStock(for peptide: Peptide) -> PeptideStock? {
+        stockItems.first { $0.peptideId == peptide.id && $0.quantityOnHand > 0 }
+    }
+
+    func addPeptide(name: String, halfLifeHours: Double, defaultDoseAmount: Double, defaultDoseUnit: DoseUnit) async throws {
+        let peptide = Peptide(
+            name: name,
+            halfLifeHours: halfLifeHours,
+            defaultDoseAmount: defaultDoseAmount,
+            defaultDoseUnit: defaultDoseUnit,
+            createdAt: Date()
+        )
+        try await peptideRepo.add(peptide)
+    }
+
+    func updatePeptide(_ peptide: Peptide) async throws {
+        try await peptideRepo.update(peptide)
+    }
+
+    func deletePeptide(_ peptide: Peptide) async throws {
+        guard let id = peptide.id else { return }
+        try await peptideRepo.delete(id: id)
+    }
+
+    func addBlend(_ blend: Blend) async throws {
+        try await blendRepo.add(blend)
+    }
+
+    func updateBlend(_ blend: Blend) async throws {
+        try await blendRepo.update(blend)
+    }
+
+    func deleteBlend(_ blend: Blend) async throws {
+        guard let id = blend.id else { return }
+        try await blendRepo.delete(id: id)
     }
 }

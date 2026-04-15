@@ -4,84 +4,83 @@ import FirebaseFirestore
 
 @MainActor
 final class InjectViewModel: ObservableObject {
-    @Published var peptides: [Peptide] = []
     @Published var activeVials: [ActiveVial] = []
     @Published var schedules: [Schedule] = []
-    @Published var selectedPeptide: Peptide?
-    @Published var doseOverride: String = ""
+    @Published var selectedVial: ActiveVial?
+    @Published var doseOverrides: [String: String] = [:]  // peptideId → mcg string
     @Published var injectionSite: String = ""
     @Published var isLoading = false
 
-    private let peptideRepo: PeptideRepository
+    let preselectedVial: ActiveVial?
+
     private let vialRepo: VialRepository
     private let logRepo: LogRepository
     private let scheduleRepo: ScheduleRepository
     private var listeners: [ListenerRegistration] = []
 
     init(
-        peptideRepo: PeptideRepository,
         vialRepo: VialRepository,
         logRepo: LogRepository,
-        scheduleRepo: ScheduleRepository
+        scheduleRepo: ScheduleRepository,
+        preselectedVial: ActiveVial? = nil
     ) {
-        self.peptideRepo = peptideRepo
         self.vialRepo = vialRepo
         self.logRepo = logRepo
         self.scheduleRepo = scheduleRepo
+        self.preselectedVial = preselectedVial
     }
 
     func startListening() {
-        listeners.append(peptideRepo.listen { [weak self] p in
-            self?.peptides = p
-            if self?.selectedPeptide == nil { self?.selectedPeptide = p.first }
+        guard preselectedVial == nil else { return }
+        listeners.append(vialRepo.listen { [weak self] vials in
+            self?.activeVials = vials
+            if self?.selectedVial == nil { self?.selectedVial = vials.first }
         })
-        listeners.append(vialRepo.listen { [weak self] in self?.activeVials = $0 })
         listeners.append(scheduleRepo.listen { [weak self] in self?.schedules = $0 })
     }
 
     func stopListening() { listeners.forEach { $0.remove() }; listeners.removeAll() }
 
-    func schedule(for peptide: Peptide) -> Schedule? {
-        schedules.first { $0.peptideId == peptide.id && $0.isActive }
+    var effectiveVial: ActiveVial? { preselectedVial ?? selectedVial }
+
+    func dose(for compound: VialCompound) -> Double {
+        if let s = doseOverrides[compound.peptideId], let d = Double(s), d > 0 { return d }
+        return compound.defaultDoseAmountMcg
     }
 
-    func activeVial(for peptide: Peptide) -> ActiveVial? {
-        activeVials.first { $0.peptideId == peptide.id && $0.isActive }
-    }
+    var isLastDose: Bool { (effectiveVial?.dosesRemaining ?? 2) <= 1 }
 
-    var effectiveDose: Double {
-        if let override = Double(doseOverride), override > 0 { return override }
-        return selectedPeptide.flatMap { schedule(for: $0)?.doseAmount } ?? 0
-    }
-
-    var effectiveUnit: DoseUnit {
-        selectedPeptide.flatMap { schedule(for: $0)?.doseUnit } ?? .mcg
+    func deleteVial() async throws {
+        guard let vialId = effectiveVial?.id else { return }
+        try await vialRepo.delete(vialId: vialId)
     }
 
     func logInjection() async throws {
-        guard let peptide = selectedPeptide,
-              let peptideId = peptide.id,
-              let vial = activeVial(for: peptide),
-              let vialId = vial.id else { return }
-
+        guard let vial = effectiveVial, let vialId = vial.id else { return }
         isLoading = true
         defer { isLoading = false }
 
-        let log = InjectionLog(
-            peptideId: peptideId,
-            vialId: vialId,
-            doseAmount: effectiveDose,
-            doseUnit: effectiveUnit,
-            timestamp: Date(),
-            injectionSite: injectionSite.isEmpty ? nil : injectionSite
-        )
-        try await logRepo.add(log)
+        for compound in vial.compounds {
+            let log = InjectionLog(
+                peptideId: compound.peptideId,
+                vialId: vialId,
+                doseAmount: dose(for: compound),
+                doseUnit: .mcg,
+                timestamp: Date(),
+                injectionSite: injectionSite.isEmpty ? nil : injectionSite
+            )
+            try await logRepo.add(log)
+        }
         try await vialRepo.decrementDose(vialId: vialId)
 
-        if let sched = schedule(for: peptide), let scheduleId = sched.id {
-            let slots = NotificationService.slotsPerPeptide(activePeptideCount: max(1, schedules.count))
-            let ids = await NotificationService.schedule(for: sched, peptideName: peptide.name, slotsPerPeptide: slots)
-            try await scheduleRepo.updateNotificationIds(ids, for: scheduleId)
+        let activeSchedules = schedules.filter(\.isActive)
+        for compound in vial.compounds {
+            if let sched = activeSchedules.first(where: { $0.peptideId == compound.peptideId }),
+               let schedId = sched.id {
+                let slots = NotificationService.slotsPerPeptide(activePeptideCount: max(1, activeSchedules.count))
+                let ids = await NotificationService.schedule(for: sched, peptideName: compound.peptideName, slotsPerPeptide: slots)
+                try await scheduleRepo.updateNotificationIds(ids, for: schedId)
+            }
         }
     }
 }

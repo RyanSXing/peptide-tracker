@@ -1,9 +1,10 @@
 import SwiftUI
 
 struct StockTabView: View {
-    @StateObject var viewModel: StockViewModel
+    @ObservedObject var viewModel: StockViewModel
     let userId: String
-    @State private var showAddSheet = false
+    @State private var showRestockAlert = false
+    @State private var restockPeptideName = ""
 
     var body: some View {
         ZStack {
@@ -22,17 +23,30 @@ struct StockTabView: View {
                     LazyVStack(spacing: 10) {
                         ForEach(viewModel.stockItems) { stock in
                             if let peptide = viewModel.peptide(for: stock) {
-                                NavigationLink {
-                                    ReconstitutionView(
-                                        viewModel: ReconstitutionViewModel(
-                                            stock: stock,
-                                            peptide: peptide,
-                                            vialRepo: VialRepository(userId: userId),
-                                            stockRepo: StockRepository(userId: userId)
-                                        )
-                                    )
-                                } label: {
-                                    StockRowView(stock: stock, peptideName: peptide.name)
+                                Group {
+                                    if stock.quantityOnHand > 0 {
+                                        NavigationLink {
+                                            ReconstitutionView(
+                                                viewModel: ReconstitutionViewModel(
+                                                    primaryStock: stock,
+                                                    primaryPeptide: peptide,
+                                                    allPeptides: viewModel.peptides,
+                                                    allStocks: viewModel.stockItems,
+                                                    vialRepo: VialRepository(userId: userId),
+                                                    stockRepo: StockRepository(userId: userId)
+                                                )
+                                            )
+                                        } label: {
+                                            StockRowView(stock: stock, peptideName: peptide.name)
+                                        }
+                                    } else {
+                                        Button {
+                                            restockPeptideName = peptide.name
+                                            showRestockAlert = true
+                                        } label: {
+                                            StockRowView(stock: stock, peptideName: peptide.name)
+                                        }
+                                    }
                                 }
                                 .swipeActions(edge: .trailing) {
                                     Button(role: .destructive) {
@@ -48,19 +62,11 @@ struct StockTabView: View {
                 }
             }
         }
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button { showAddSheet = true } label: {
-                    Image(systemName: "plus")
-                }
-            }
+        .alert("Out of Stock", isPresented: $showRestockAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("\(restockPeptideName) has no vials left. Restock it from the Peptides tab before reconstituting.")
         }
-        .sheet(isPresented: $showAddSheet) {
-            AddStockView(viewModel: viewModel)
-        }
-        .onAppear { viewModel.startListening() }
-        .onDisappear { viewModel.stopListening() }
-        .preferredColorScheme(.dark)
     }
 }
 
@@ -71,6 +77,7 @@ struct AddStockView: View {
     @State private var mgPerVial = ""
     @State private var quantity = "1"
     @State private var expiryDate = Calendar.current.date(byAdding: .year, value: 1, to: Date())!
+    var preselectedPeptide: Peptide? = nil
 
     var body: some View {
         NavigationStack {
@@ -117,6 +124,8 @@ struct AddStockView: View {
                 }
             }
         }
+        .onAppear {
+            if let p = preselectedPeptide { selectedPeptide = p }
+        }
     }
 }
-

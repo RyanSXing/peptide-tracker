@@ -23,12 +23,12 @@ final class ActiveVialsViewModel: ObservableObject {
     func stopListening() { listeners.forEach { $0.remove() }; listeners.removeAll() }
 
     func peptide(for vial: ActiveVial) -> Peptide? {
-        peptides.first { $0.id == vial.peptideId }
+        guard let firstId = vial.compounds.first?.peptideId else { return nil }
+        return peptides.first { $0.id == firstId }
     }
 
-    func deactivate(_ vial: ActiveVial) async throws {
-        var updated = vial
-        updated.isActive = false
-        try await vialRepo.update(updated)
+    func delete(_ vial: ActiveVial) async throws {
+        guard let id = vial.id else { return }
+        try await vialRepo.delete(vialId: id)
     }
 }

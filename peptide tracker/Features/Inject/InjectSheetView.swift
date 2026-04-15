@@ -2,67 +2,70 @@ import SwiftUI
 
 struct InjectSheetView: View {
     @StateObject var viewModel: InjectViewModel
-    @Binding var isPresented: Bool
+    @Environment(\.dismiss) var dismiss
+    @State private var showEmptyAlert = false
 
     var body: some View {
         NavigationStack {
             ZStack {
                 Color(red: 0.06, green: 0.07, blue: 0.11).ignoresSafeArea()
                 VStack(spacing: 20) {
-                    if viewModel.peptides.isEmpty {
+                    if viewModel.effectiveVial == nil && viewModel.activeVials.isEmpty {
                         VStack(spacing: 12) {
                             Image(systemName: "syringe")
                                 .font(.system(size: 48)).foregroundColor(.secondary)
-                            Text("No peptides set up.")
+                            Text("No active vials")
                                 .foregroundColor(.secondary)
-                            Text("Add a peptide in Settings first.")
+                            Text("Open a vial from Inventory first.")
                                 .font(.caption).foregroundColor(.secondary)
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else {
-                        // Peptide picker
-                        Picker("Peptide", selection: $viewModel.selectedPeptide) {
-                            ForEach(viewModel.peptides) { p in
-                                Text(p.name).tag(Optional(p))
+                        // Vial picker (only when not pre-selected)
+                        if viewModel.preselectedVial == nil && !viewModel.activeVials.isEmpty {
+                            Picker("Vial", selection: $viewModel.selectedVial) {
+                                ForEach(viewModel.activeVials) { vial in
+                                    Text(vial.displayName).tag(Optional(vial))
+                                }
                             }
+                            .pickerStyle(.segmented)
+                            .padding(.horizontal)
                         }
-                        .pickerStyle(.segmented)
-                        .padding(.horizontal)
 
-                        if let peptide = viewModel.selectedPeptide {
-                            VStack(spacing: 16) {
-                                // Dose
+                        if let vial = viewModel.effectiveVial {
+                            VStack(spacing: 12) {
+                                // Vial summary
                                 HStack {
-                                    Text("Dose").foregroundColor(.secondary)
+                                    Text(vial.displayName)
+                                        .font(.headline).foregroundColor(.white)
                                     Spacer()
-                                    TextField(
-                                        "\(viewModel.effectiveDose, specifier: "%.0f")",
-                                        text: $viewModel.doseOverride
-                                    )
-                                    .keyboardType(.decimalPad)
-                                    .multilineTextAlignment(.trailing)
-                                    .frame(width: 80)
-                                    Text(viewModel.effectiveUnit.label).foregroundColor(.secondary)
+                                    Text("\(vial.dosesRemaining) doses left")
+                                        .font(.caption).foregroundColor(vial.dosesRemaining <= 3 ? .orange : .secondary)
                                 }
                                 .padding()
                                 .background(Color(red: 0.12, green: 0.14, blue: 0.2))
                                 .cornerRadius(12)
 
-                                // Active vial info
-                                if let vial = viewModel.activeVial(for: peptide) {
+                                // Per-compound dose fields
+                                ForEach(vial.compounds, id: \.peptideId) { compound in
                                     HStack {
-                                        Text("Active vial").foregroundColor(.secondary)
+                                        Text(compound.peptideName).foregroundColor(.secondary)
                                         Spacer()
-                                        Text("\(vial.dosesRemaining) doses remaining")
-                                            .foregroundColor(vial.dosesRemaining <= 3 ? .orange : .green)
+                                        TextField(
+                                            String(format: "%.0f", compound.defaultDoseAmountMcg),
+                                            text: Binding(
+                                                get: { viewModel.doseOverrides[compound.peptideId] ?? "" },
+                                                set: { viewModel.doseOverrides[compound.peptideId] = $0 }
+                                            )
+                                        )
+                                        .keyboardType(.decimalPad)
+                                        .multilineTextAlignment(.trailing)
+                                        .frame(width: 80)
+                                        Text("mcg").foregroundColor(.secondary)
                                     }
                                     .padding()
                                     .background(Color(red: 0.12, green: 0.14, blue: 0.2))
                                     .cornerRadius(12)
-                                } else {
-                                    Text("No active vial — open a vial from Inventory first.")
-                                        .font(.caption).foregroundColor(.orange)
-                                        .padding()
                                 }
 
                                 // Injection site
@@ -79,8 +82,13 @@ struct InjectSheetView: View {
                                 // Log button
                                 Button {
                                     Task {
+                                        let lastDose = viewModel.isLastDose
                                         try? await viewModel.logInjection()
-                                        isPresented = false
+                                        if lastDose {
+                                            showEmptyAlert = true
+                                        } else {
+                                            dismiss()
+                                        }
                                     }
                                 } label: {
                                     HStack {
@@ -94,7 +102,7 @@ struct InjectSheetView: View {
                                     .frame(maxWidth: .infinity)
                                 }
                                 .buttonStyle(.borderedProminent)
-                                .disabled(viewModel.activeVial(for: peptide) == nil || viewModel.isLoading)
+                                .disabled(vial.dosesRemaining == 0 || viewModel.isLoading)
                             }
                             .padding(.horizontal)
                         }
@@ -107,10 +115,18 @@ struct InjectSheetView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { isPresented = false }
+                    Button("Cancel") { dismiss() }
                 }
             }
             .preferredColorScheme(.dark)
+        }
+        .alert("Vial Empty", isPresented: $showEmptyAlert) {
+            Button("Delete Vial", role: .destructive) {
+                Task { try? await viewModel.deleteVial(); dismiss() }
+            }
+            Button("Keep It", role: .cancel) { dismiss() }
+        } message: {
+            Text("You've used the last dose. Delete this vial?")
         }
         .onAppear { viewModel.startListening() }
         .onDisappear { viewModel.stopListening() }

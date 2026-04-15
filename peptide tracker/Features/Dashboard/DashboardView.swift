@@ -2,6 +2,10 @@ import SwiftUI
 
 struct DashboardView: View {
     @StateObject var viewModel: DashboardViewModel
+    let userId: String
+    @State private var injectVial: ActiveVial?
+    @State private var deleteTarget: ActiveVial?
+    @State private var reconstitutionError: String?
 
     var body: some View {
         NavigationStack {
@@ -10,53 +14,105 @@ struct DashboardView: View {
 
                 if viewModel.isLoading {
                     ProgressView().tint(.blue)
-                } else if viewModel.peptides.isEmpty {
+                } else if viewModel.activeVials.isEmpty {
                     VStack(spacing: 12) {
-                        Image(systemName: "syringe")
-                            .font(.system(size: 48))
-                            .foregroundColor(.secondary)
-                        Text("No Peptides")
+                        Image(systemName: "testtube.2")
+                            .font(.system(size: 48)).foregroundColor(.secondary)
+                        Text("No Active Vials")
                             .font(.title2).bold().foregroundColor(.white)
-                        Text("Add a peptide in Settings to get started.")
+                        Text("Open a vial from Inventory to get started.")
                             .font(.subheadline).foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                     }
                 } else {
-                    ScrollView {
-                        VStack(spacing: 12) {
-                            ForEach(viewModel.peptides) { peptide in
-                                if let days = viewModel.daysOfSupply(for: peptide), days < 7 {
-                                    alertBanner(
-                                        text: "\(peptide.name): \(Int(days)) days of stock remaining",
-                                        color: .red
-                                    )
-                                } else if let vial = viewModel.activeVial(for: peptide), vial.isExpired {
-                                    alertBanner(
-                                        text: "\(peptide.name): active vial may be expired",
-                                        color: .orange
-                                    )
+                    List {
+                        ForEach(viewModel.activeVials.filter(\.isExpired)) { vial in
+                            alertBanner(text: "\(vial.displayName): vial may be expired", color: .orange)
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
+                                .listRowInsets(EdgeInsets(top: 2, leading: 16, bottom: 2, trailing: 16))
+                        }
+                        ForEach(viewModel.activeVials.filter { !$0.isExpired && $0.dosesRemaining <= 3 }) { vial in
+                            alertBanner(text: "\(vial.displayName): only \(vial.dosesRemaining) dose(s) left", color: .red)
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
+                                .listRowInsets(EdgeInsets(top: 2, leading: 16, bottom: 2, trailing: 16))
+                        }
+                        ForEach(viewModel.activeVials) { vial in
+                            Button { injectVial = vial } label: {
+                                VialCard(vial: vial)
+                            }
+                            .buttonStyle(.plain)
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) {
+                                    deleteTarget = vial
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
                                 }
                             }
-
-                            ForEach(viewModel.peptides) { peptide in
-                                PeptideCard(
-                                    peptide: peptide,
-                                    vial: viewModel.activeVial(for: peptide),
-                                    schedule: viewModel.schedule(for: peptide),
-                                    daysOfSupply: viewModel.daysOfSupply(for: peptide)
-                                )
+                            .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                                Button {
+                                    Task {
+                                        do {
+                                            try await viewModel.quickReconstitute(vial)
+                                        } catch {
+                                            reconstitutionError = error.localizedDescription
+                                        }
+                                    }
+                                } label: {
+                                    Label("New Vial", systemImage: "cross.vial.fill")
+                                }
+                                .tint(.green)
                             }
                         }
-                        .padding()
                     }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
                 }
             }
             .navigationTitle("Dashboard")
             .navigationBarTitleDisplayMode(.large)
             .preferredColorScheme(.dark)
+            .sheet(item: $injectVial, onDismiss: {
+                viewModel.stopListening()
+                viewModel.startListening()
+            }) { vial in
+                InjectSheetView(
+                    viewModel: InjectViewModel(
+                        vialRepo: VialRepository(userId: userId),
+                        logRepo: LogRepository(userId: userId),
+                        scheduleRepo: ScheduleRepository(userId: userId),
+                        preselectedVial: vial
+                    )
+                )
+            }
+            .alert("Delete Vial", isPresented: Binding(
+                get: { deleteTarget != nil },
+                set: { if !$0 { deleteTarget = nil } }
+            )) {
+                Button("Delete", role: .destructive) {
+                    if let vial = deleteTarget {
+                        Task { try? await viewModel.deleteVial(vial) }
+                    }
+                    deleteTarget = nil
+                }
+                Button("Cancel", role: .cancel) { deleteTarget = nil }
+            } message: {
+                Text("Are you sure you want to delete \(deleteTarget?.displayName ?? "this vial")? This cannot be undone.")
+            }
+            .alert("Out of Stock", isPresented: Binding(
+                get: { reconstitutionError != nil },
+                set: { if !$0 { reconstitutionError = nil } }
+            )) {
+                Button("OK", role: .cancel) { reconstitutionError = nil }
+            } message: {
+                Text(reconstitutionError ?? "")
+            }
         }
         .onAppear { viewModel.startListening() }
-        .onDisappear { viewModel.stopListening() }
     }
 
     private func alertBanner(text: String, color: Color) -> some View {

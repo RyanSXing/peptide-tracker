@@ -22,6 +22,10 @@ final class VialRepository {
         try collection.document(id).setData(from: vial, merge: true)
     }
 
+    func delete(vialId: String) async throws {
+        try await collection.document(vialId).delete()
+    }
+
     func decrementDose(vialId: String) async throws {
         try await collection.document(vialId)
             .updateData(["dosesRemaining": FieldValue.increment(Int64(-1))])

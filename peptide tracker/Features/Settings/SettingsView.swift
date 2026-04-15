@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @StateObject var viewModel: SettingsViewModel
+    @State private var showClearAlert = false
 
     var body: some View {
         NavigationStack {
@@ -22,6 +23,13 @@ struct SettingsView: View {
                                 .font(.caption)
                         }
                     }
+                    Section("Data") {
+                        Button(role: .destructive) {
+                            showClearAlert = true
+                        } label: {
+                            Label("Clear All Data", systemImage: "trash")
+                        }
+                    }
                     Section("About") {
                         HStack {
                             Text("Version")
@@ -36,6 +44,14 @@ struct SettingsView: View {
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .preferredColorScheme(.dark)
+            .alert("Clear All Data", isPresented: $showClearAlert) {
+                Button("Delete Everything", role: .destructive) {
+                    Task { try? await viewModel.clearAllData() }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This will permanently delete all peptides, vials, injection logs, and schedules. This cannot be undone.")
+            }
         }
         .onAppear { viewModel.startListening() }
         .onDisappear { viewModel.stopListening() }

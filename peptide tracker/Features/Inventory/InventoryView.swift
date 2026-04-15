@@ -108,10 +108,13 @@ struct InventoryView: View {
                     Button { showAddTypeDialog = true } label: { Image(systemName: "plus") }
                 }
             }
-            .confirmationDialog("Add to Inventory", isPresented: $showAddTypeDialog) {
-                Button("New Peptide") { showAddPeptide = true }
-                Button("New Blend") { showAddBlend = true }
-                Button("Cancel", role: .cancel) {}
+            .sheet(isPresented: $showAddTypeDialog) {
+                AddInventoryTypePicker(
+                    onPeptide: { showAddTypeDialog = false; showAddPeptide = true },
+                    onBlend:   { showAddTypeDialog = false; showAddBlend = true }
+                )
+                .presentationDetents([.height(260)])
+                .presentationDragIndicator(.visible)
             }
             .navigationDestination(isPresented: Binding(
                 get: { reconstitutionTarget != nil },
@@ -436,5 +439,70 @@ struct RestockBlendSheet: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Add Inventory Type Picker
+struct AddInventoryTypePicker: View {
+    let onPeptide: () -> Void
+    let onBlend: () -> Void
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Text("What would you like to add?")
+                .font(.headline)
+                .foregroundColor(.white)
+                .padding(.top, 8)
+
+            HStack(spacing: 12) {
+                typeCard(
+                    icon: "pill.fill",
+                    iconColor: .blue,
+                    title: "Peptide",
+                    subtitle: "A single compound\nyou source separately",
+                    action: onPeptide
+                )
+                typeCard(
+                    icon: "flask.fill",
+                    iconColor: .purple,
+                    title: "Blend",
+                    subtitle: "A pre-mixed vial with\nmultiple compounds",
+                    action: onBlend
+                )
+            }
+            .padding(.horizontal)
+            .padding(.bottom, 8)
+        }
+        .frame(maxWidth: .infinity)
+        .background(Color(red: 0.08, green: 0.09, blue: 0.14))
+        .preferredColorScheme(.dark)
+    }
+
+    private func typeCard(icon: String, iconColor: Color, title: String, subtitle: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 10) {
+                Image(systemName: icon)
+                    .font(.system(size: 32))
+                    .foregroundColor(iconColor)
+                    .frame(width: 56, height: 56)
+                    .background(iconColor.opacity(0.15))
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+
+                Text(title)
+                    .font(.subheadline).bold()
+                    .foregroundColor(.white)
+
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .background(Color(red: 0.12, green: 0.14, blue: 0.2))
+            .cornerRadius(16)
+        }
+        .buttonStyle(.plain)
     }
 }

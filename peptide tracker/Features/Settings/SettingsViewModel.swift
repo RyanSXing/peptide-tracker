@@ -57,7 +57,7 @@ final class SettingsViewModel: ObservableObject {
 
     func clearAllData() async throws {
         let db = Firestore.firestore().collection("users").document(userId)
-        for colName in ["peptides", "peptideStock", "activeVials", "injectionLogs", "schedules"] {
+        for colName in ["peptides", "peptideStock", "activeVials", "injectionLogs", "schedules", "blends"] {
             let snap = try await db.collection(colName).getDocuments()
             for doc in snap.documents {
                 try await doc.reference.delete()

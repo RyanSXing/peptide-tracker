@@ -8,7 +8,8 @@ struct ContentView: View {
             DashboardView(
                 viewModel: DashboardViewModel(
                     vialRepo: VialRepository(userId: userId),
-                    stockRepo: StockRepository(userId: userId)
+                    stockRepo: StockRepository(userId: userId),
+                    blendRepo: BlendRepository(userId: userId)
                 ),
                 userId: userId
             )

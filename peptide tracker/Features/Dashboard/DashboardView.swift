@@ -11,67 +11,7 @@ struct DashboardView: View {
         NavigationStack {
             ZStack {
                 Color(red: 0.06, green: 0.07, blue: 0.11).ignoresSafeArea()
-
-                if viewModel.isLoading {
-                    ProgressView().tint(.blue)
-                } else if viewModel.activeVials.isEmpty {
-                    VStack(spacing: 12) {
-                        Image(systemName: "testtube.2")
-                            .font(.system(size: 48)).foregroundColor(.secondary)
-                        Text("No Active Vials")
-                            .font(.title2).bold().foregroundColor(.white)
-                        Text("Open a vial from Inventory to get started.")
-                            .font(.subheadline).foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
-                } else {
-                    List {
-                        ForEach(viewModel.activeVials.filter(\.isExpired)) { vial in
-                            alertBanner(text: "\(vial.displayName): vial may be expired", color: .orange)
-                                .listRowBackground(Color.clear)
-                                .listRowSeparator(.hidden)
-                                .listRowInsets(EdgeInsets(top: 2, leading: 16, bottom: 2, trailing: 16))
-                        }
-                        ForEach(viewModel.activeVials.filter { !$0.isExpired && $0.dosesRemaining <= 3 }) { vial in
-                            alertBanner(text: "\(vial.displayName): only \(vial.dosesRemaining) dose(s) left", color: .red)
-                                .listRowBackground(Color.clear)
-                                .listRowSeparator(.hidden)
-                                .listRowInsets(EdgeInsets(top: 2, leading: 16, bottom: 2, trailing: 16))
-                        }
-                        ForEach(viewModel.activeVials) { vial in
-                            Button { injectVial = vial } label: {
-                                VialCard(vial: vial)
-                            }
-                            .buttonStyle(.plain)
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
-                            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
-                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                Button(role: .destructive) {
-                                    deleteTarget = vial
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                            }
-                            .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                                Button {
-                                    Task {
-                                        do {
-                                            try await viewModel.quickReconstitute(vial)
-                                        } catch {
-                                            reconstitutionError = error.localizedDescription
-                                        }
-                                    }
-                                } label: {
-                                    Label("New Vial", systemImage: "cross.vial.fill")
-                                }
-                                .tint(.green)
-                            }
-                        }
-                    }
-                    .listStyle(.plain)
-                    .scrollContentBackground(.hidden)
-                }
+                dashboardContent
             }
             .navigationTitle("Dashboard")
             .navigationBarTitleDisplayMode(.large)
@@ -85,6 +25,7 @@ struct DashboardView: View {
                         vialRepo: VialRepository(userId: userId),
                         logRepo: LogRepository(userId: userId),
                         scheduleRepo: ScheduleRepository(userId: userId),
+                        stockRepo: StockRepository(userId: userId),
                         preselectedVial: vial
                     )
                 )
@@ -113,6 +54,80 @@ struct DashboardView: View {
             }
         }
         .onAppear { viewModel.startListening() }
+    }
+
+    @ViewBuilder
+    private var dashboardContent: some View {
+        if viewModel.isLoading {
+            ProgressView().tint(.blue)
+        } else if viewModel.activeVials.isEmpty {
+            emptyState
+        } else {
+            vialList
+        }
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "testtube.2")
+                .font(.system(size: 48)).foregroundColor(.secondary)
+            Text("No Active Vials")
+                .font(.title2).bold().foregroundColor(.white)
+            Text("Open a vial from Inventory to get started.")
+                .font(.subheadline).foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+    }
+
+    private var vialList: some View {
+        List {
+            ForEach(viewModel.activeVials.filter(\.isExpired)) { vial in
+                alertBanner(text: "\(vial.displayName): vial may be expired", color: .orange)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 2, leading: 16, bottom: 2, trailing: 16))
+            }
+            ForEach(viewModel.activeVials.filter { !$0.isExpired && $0.dosesRemaining <= 3 }) { vial in
+                alertBanner(text: "\(vial.displayName): only \(vial.dosesRemaining) dose(s) left", color: .red)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 2, leading: 16, bottom: 2, trailing: 16))
+            }
+            ForEach(viewModel.activeVials) { vial in
+                vialRow(vial: vial)
+            }
+        }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+    }
+
+    private func vialRow(vial: ActiveVial) -> some View {
+        Button { injectVial = vial } label: {
+            VialCard(vial: vial)
+        }
+        .buttonStyle(.plain)
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
+        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button(role: .destructive) { deleteTarget = vial } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+            Button {
+                Task {
+                    do {
+                        try await viewModel.quickReconstitute(vial)
+                    } catch {
+                        reconstitutionError = error.localizedDescription
+                    }
+                }
+            } label: {
+                Label("New Vial", systemImage: "cross.vial.fill")
+            }
+            .tint(.green)
+        }
     }
 
     private func alertBanner(text: String, color: Color) -> some View {

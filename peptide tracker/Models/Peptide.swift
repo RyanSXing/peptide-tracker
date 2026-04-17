@@ -25,6 +25,7 @@ struct Peptide: Codable, Identifiable, Hashable {
     var defaultDoseAmount: Double
     var defaultDoseUnit: DoseUnit
     var createdAt: Date
+    var isBlendOnly: Bool = false
 
     static func == (lhs: Peptide, rhs: Peptide) -> Bool { lhs.id == rhs.id }
     func hash(into hasher: inout Hasher) { hasher.combine(id) }

@@ -16,17 +16,20 @@ final class InjectViewModel: ObservableObject {
     private let vialRepo: VialRepository
     private let logRepo: LogRepository
     private let scheduleRepo: ScheduleRepository
+    private let stockRepo: StockRepository
     private var listeners: [ListenerRegistration] = []
 
     init(
         vialRepo: VialRepository,
         logRepo: LogRepository,
         scheduleRepo: ScheduleRepository,
+        stockRepo: StockRepository,
         preselectedVial: ActiveVial? = nil
     ) {
         self.vialRepo = vialRepo
         self.logRepo = logRepo
         self.scheduleRepo = scheduleRepo
+        self.stockRepo = stockRepo
         self.preselectedVial = preselectedVial
     }
 

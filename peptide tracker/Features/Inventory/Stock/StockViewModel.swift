@@ -47,6 +47,8 @@ final class StockViewModel: ObservableObject {
         stockItems.first { $0.peptideId == peptide.id && $0.quantityOnHand > 0 }
     }
 
+    var inventoryPeptides: [Peptide] { peptides.filter { !$0.isBlendOnly } }
+
     func addPeptide(name: String, halfLifeHours: Double, defaultDoseAmount: Double, defaultDoseUnit: DoseUnit) async throws {
         let peptide = Peptide(
             name: name,
@@ -56,6 +58,18 @@ final class StockViewModel: ObservableObject {
             createdAt: Date()
         )
         try await peptideRepo.add(peptide)
+    }
+
+    func addBlendOnlyPeptide(name: String, halfLifeHours: Double, defaultDoseAmount: Double, defaultDoseUnit: DoseUnit) async throws -> String {
+        let peptide = Peptide(
+            name: name,
+            halfLifeHours: halfLifeHours,
+            defaultDoseAmount: defaultDoseAmount,
+            defaultDoseUnit: defaultDoseUnit,
+            createdAt: Date(),
+            isBlendOnly: true
+        )
+        return try await peptideRepo.add(peptide)
     }
 
     func updatePeptide(_ peptide: Peptide) async throws {

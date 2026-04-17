@@ -13,8 +13,10 @@ final class PeptideRepository {
         return try snap.documents.compactMap { try $0.data(as: Peptide.self) }
     }
 
-    func add(_ peptide: Peptide) async throws {
-        _ = try collection.addDocument(from: peptide)
+    @discardableResult
+    func add(_ peptide: Peptide) async throws -> String {
+        let ref = try collection.addDocument(from: peptide)
+        return ref.documentID
     }
 
     func update(_ peptide: Peptide) async throws {

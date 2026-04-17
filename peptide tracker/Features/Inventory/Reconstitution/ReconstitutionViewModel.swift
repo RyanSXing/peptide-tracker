@@ -70,8 +70,8 @@ final class ReconstitutionViewModel: ObservableObject {
             )
         }
         if let first = entries.first {
-            let doses = Int(floor((first.effectiveMg * 1000) / max(1, first.doseAmountMcg)))
-            confirmedDoses = "\(max(0, doses))"
+            let doses = Int(ceil((first.effectiveMg * 1000) / max(1, first.doseAmountMcg)))
+            confirmedDoses = "\(max(1, doses))"
         }
     }
 
@@ -172,8 +172,8 @@ final class BlendReconstitutionViewModel: ObservableObject {
             )
         }
         if let first = blend.components.first {
-            let doses = Int(floor((first.mgAmount * 1000) / max(1, first.defaultDoseAmountMcg)))
-            confirmedDoses = "\(max(0, doses))"
+            let doses = Int(ceil((first.mgAmount * 1000) / max(1, first.defaultDoseAmountMcg)))
+            confirmedDoses = "\(max(1, doses))"
         }
     }
 

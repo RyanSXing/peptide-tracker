@@ -26,6 +26,7 @@ struct DashboardView: View {
                         logRepo: LogRepository(userId: userId),
                         scheduleRepo: ScheduleRepository(userId: userId),
                         stockRepo: StockRepository(userId: userId),
+                        blendRepo: BlendRepository(userId: userId),
                         preselectedVial: vial
                     )
                 )

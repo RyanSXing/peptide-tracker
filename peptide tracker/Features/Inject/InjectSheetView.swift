@@ -4,6 +4,7 @@ struct InjectSheetView: View {
     @StateObject var viewModel: InjectViewModel
     @Environment(\.dismiss) var dismiss
     @State private var showEmptyAlert = false
+    @State private var openNewVialError: String?
 
     var body: some View {
         NavigationStack {
@@ -46,25 +47,55 @@ struct InjectSheetView: View {
                                 .background(Color(red: 0.12, green: 0.14, blue: 0.2))
                                 .cornerRadius(12)
 
+                                // Partial dose warning
+                                if viewModel.isPartialLastDose {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "exclamationmark.triangle.fill")
+                                            .foregroundColor(.orange)
+                                            .font(.caption)
+                                        Text("Partial dose — less than a full amount remains in the vial.")
+                                            .font(.caption)
+                                            .foregroundColor(.orange)
+                                    }
+                                    .padding(.horizontal, 4)
+                                }
+
                                 // Per-compound dose fields
                                 ForEach(vial.compounds, id: \.peptideId) { compound in
-                                    HStack {
-                                        Text(compound.peptideName).foregroundColor(.secondary)
-                                        Spacer()
-                                        TextField(
-                                            String(format: "%.0f", compound.defaultDoseAmountMcg),
-                                            text: Binding(
-                                                get: { viewModel.doseOverrides[compound.peptideId] ?? "" },
-                                                set: { viewModel.doseOverrides[compound.peptideId] = $0 }
+                                    let exceeds = viewModel.isDoseExceeding(compound)
+                                    let maxMcg = viewModel.maxDoseMcg(for: compound)
+                                    VStack(alignment: .trailing, spacing: 4) {
+                                        HStack {
+                                            Text(compound.peptideName).foregroundColor(.secondary)
+                                            Spacer()
+                                            TextField(
+                                                String(format: "%.0f", compound.defaultDoseAmountMcg),
+                                                text: Binding(
+                                                    get: { viewModel.doseOverrides[compound.peptideId] ?? "" },
+                                                    set: { val in
+                                                        viewModel.doseOverrides[compound.peptideId] = val
+                                                        viewModel.adjustBlendDoses(changedPeptideId: compound.peptideId, newValueStr: val)
+                                                    }
+                                                )
                                             )
-                                        )
-                                        .keyboardType(.decimalPad)
-                                        .multilineTextAlignment(.trailing)
-                                        .frame(width: 80)
-                                        Text("mcg").foregroundColor(.secondary)
+                                            .keyboardType(.decimalPad)
+                                            .multilineTextAlignment(.trailing)
+                                            .frame(width: 80)
+                                            .foregroundColor(exceeds ? .red : .primary)
+                                            Text("mcg").foregroundColor(.secondary)
+                                        }
+                                        if exceeds {
+                                            Text("Max \(String(format: "%.0f", maxMcg)) mcg remaining")
+                                                .font(.caption2)
+                                                .foregroundColor(.red)
+                                        }
                                     }
                                     .padding()
                                     .background(Color(red: 0.12, green: 0.14, blue: 0.2))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(exceeds ? Color.red.opacity(0.6) : Color.clear, lineWidth: 1)
+                                    )
                                     .cornerRadius(12)
                                 }
 
@@ -102,7 +133,7 @@ struct InjectSheetView: View {
                                     .frame(maxWidth: .infinity)
                                 }
                                 .buttonStyle(.borderedProminent)
-                                .disabled(vial.dosesRemaining == 0 || viewModel.isLoading)
+                                .disabled(vial.dosesRemaining == 0 || viewModel.isLoading || viewModel.anyDoseExceedsVial)
                             }
                             .padding(.horizontal)
                         }
@@ -121,12 +152,32 @@ struct InjectSheetView: View {
             .preferredColorScheme(.dark)
         }
         .alert("Vial Empty", isPresented: $showEmptyAlert) {
-            Button("Delete Vial", role: .destructive) {
+            Button("Open New Vial") {
+                Task {
+                    do {
+                        try await viewModel.openNewVial()
+                        dismiss()
+                    } catch {
+                        openNewVialError = error.localizedDescription
+                    }
+                }
+            }
+            Button("Not Now", role: .cancel) {
                 Task { try? await viewModel.deleteVial(); dismiss() }
             }
-            Button("Keep It", role: .cancel) { dismiss() }
         } message: {
-            Text("You've used the last dose. Delete this vial?")
+            Text("You've used the last dose. Open a fresh vial from your stock?")
+        }
+        .alert("Out of Stock", isPresented: Binding(
+            get: { openNewVialError != nil },
+            set: { if !$0 { openNewVialError = nil } }
+        )) {
+            Button("OK", role: .cancel) {
+                openNewVialError = nil
+                Task { try? await viewModel.deleteVial(); dismiss() }
+            }
+        } message: {
+            Text(openNewVialError ?? "")
         }
         .onAppear { viewModel.startListening() }
         .onDisappear { viewModel.stopListening() }

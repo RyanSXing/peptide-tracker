@@ -17,6 +17,7 @@ final class InjectViewModel: ObservableObject {
     private let logRepo: LogRepository
     private let scheduleRepo: ScheduleRepository
     private let stockRepo: StockRepository
+    private let blendRepo: BlendRepository
     private var listeners: [ListenerRegistration] = []
 
     init(
@@ -24,16 +25,19 @@ final class InjectViewModel: ObservableObject {
         logRepo: LogRepository,
         scheduleRepo: ScheduleRepository,
         stockRepo: StockRepository,
+        blendRepo: BlendRepository,
         preselectedVial: ActiveVial? = nil
     ) {
         self.vialRepo = vialRepo
         self.logRepo = logRepo
         self.scheduleRepo = scheduleRepo
         self.stockRepo = stockRepo
+        self.blendRepo = blendRepo
         self.preselectedVial = preselectedVial
     }
 
     func startListening() {
+        prefillDosesIfNeeded()
         guard preselectedVial == nil else { return }
         listeners.append(vialRepo.listen { [weak self] vials in
             self?.activeVials = vials
@@ -53,9 +57,116 @@ final class InjectViewModel: ObservableObject {
 
     var isLastDose: Bool { (effectiveVial?.dosesRemaining ?? 2) <= 1 }
 
+    /// Maximum mcg the user can inject right now for this compound (whatever is physically left).
+    func maxDoseMcg(for compound: VialCompound) -> Double {
+        guard let vial = effectiveVial else { return compound.defaultDoseAmountMcg }
+        let dosesUsed = vial.totalDoses - vial.dosesRemaining
+        return max(0, compound.mgInVial * 1000.0 - Double(dosesUsed) * compound.defaultDoseAmountMcg)
+    }
+
+    func isDoseExceeding(_ compound: VialCompound) -> Bool {
+        dose(for: compound) > maxDoseMcg(for: compound) + 0.01
+    }
+
+    var anyDoseExceedsVial: Bool {
+        effectiveVial?.compounds.contains { isDoseExceeding($0) } ?? false
+    }
+
+    /// When one field in a multi-compound vial changes, scale all others by the same ratio.
+    func adjustBlendDoses(changedPeptideId: String, newValueStr: String) {
+        guard let vial = effectiveVial, vial.compounds.count > 1 else { return }
+        guard let changed = vial.compounds.first(where: { $0.peptideId == changedPeptideId }) else { return }
+        guard let newDose = Double(newValueStr), newDose > 0, changed.defaultDoseAmountMcg > 0 else { return }
+        let ratio = newDose / changed.defaultDoseAmountMcg
+        for compound in vial.compounds where compound.peptideId != changedPeptideId {
+            doseOverrides[compound.peptideId] = String(format: "%.0f", ratio * compound.defaultDoseAmountMcg)
+        }
+    }
+
+    var isPartialLastDose: Bool {
+        guard isLastDose, let vial = effectiveVial, let first = vial.compounds.first else { return false }
+        let dosesUsed = vial.totalDoses - vial.dosesRemaining
+        let remainingMcg = first.mgInVial * 1000 - Double(dosesUsed) * first.defaultDoseAmountMcg
+        return remainingMcg > 0 && remainingMcg < first.defaultDoseAmountMcg
+    }
+
+    private func remainingMcg(for compound: VialCompound) -> Double {
+        guard let vial = effectiveVial else { return compound.defaultDoseAmountMcg }
+        let dosesUsed = vial.totalDoses - vial.dosesRemaining
+        return max(0, compound.mgInVial * 1000 - Double(dosesUsed) * compound.defaultDoseAmountMcg)
+    }
+
+    private func prefillDosesIfNeeded() {
+        guard let vial = effectiveVial, vial.dosesRemaining == 1 else { return }
+        for compound in vial.compounds {
+            guard doseOverrides[compound.peptideId] == nil else { continue }
+            let remaining = remainingMcg(for: compound)
+            if remaining < compound.defaultDoseAmountMcg {
+                doseOverrides[compound.peptideId] = String(format: "%.0f", remaining)
+            }
+        }
+    }
+
     func deleteVial() async throws {
         guard let vialId = effectiveVial?.id else { return }
         try await vialRepo.delete(vialId: vialId)
+    }
+
+    /// Opens a fresh vial from stock (or blend stock), then deletes the now-empty old vial.
+    func openNewVial() async throws {
+        guard let vial = effectiveVial, let oldId = vial.id else { return }
+
+        if vial.isBlend {
+            guard let blend = try await blendRepo.fetch(id: vial.stockId),
+                  blend.quantityOnHand > 0 else {
+                throw NSError(domain: "", code: 0,
+                    userInfo: [NSLocalizedDescriptionKey: "\(vial.displayName) blend is out of stock. Restock from Inventory first."])
+            }
+            let newVial = ActiveVial(
+                stockId: vial.stockId,
+                compounds: vial.compounds,
+                bacWaterML: vial.bacWaterML,
+                dosesRemaining: vial.totalDoses,
+                totalDoses: vial.totalDoses,
+                dateConstituted: Date(),
+                estimatedExpiry: Calendar.current.date(byAdding: .day, value: 30, to: Date())!,
+                isActive: true,
+                isBlend: true
+            )
+            try await vialRepo.add(newVial)
+            var updated = blend
+            updated.quantityOnHand = max(0, blend.quantityOnHand - 1)
+            try await blendRepo.update(updated)
+        } else {
+            var stocksToDecrement: [PeptideStock] = []
+            for compound in vial.compounds {
+                let candidates = try await stockRepo.fetch(for: compound.peptideId)
+                let available = candidates.filter { $0.quantityOnHand > 0 }
+                guard let stock = available.first(where: { $0.id == vial.stockId }) ?? available.first else {
+                    throw NSError(domain: "", code: 0,
+                        userInfo: [NSLocalizedDescriptionKey: "\(compound.peptideName) is out of stock. Restock from Inventory first."])
+                }
+                stocksToDecrement.append(stock)
+            }
+            let newVial = ActiveVial(
+                stockId: vial.stockId,
+                compounds: vial.compounds,
+                bacWaterML: vial.bacWaterML,
+                dosesRemaining: vial.totalDoses,
+                totalDoses: vial.totalDoses,
+                dateConstituted: Date(),
+                estimatedExpiry: Calendar.current.date(byAdding: .day, value: 30, to: Date())!,
+                isActive: true,
+                isBlend: false
+            )
+            try await vialRepo.add(newVial)
+            for var stock in stocksToDecrement {
+                stock.quantityOnHand = max(0, stock.quantityOnHand - 1)
+                try await stockRepo.update(stock)
+            }
+        }
+
+        try await vialRepo.delete(vialId: oldId)
     }
 
     func logInjection() async throws {

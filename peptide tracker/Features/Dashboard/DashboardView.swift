@@ -6,6 +6,7 @@ struct DashboardView: View {
     @State private var injectVial: ActiveVial?
     @State private var deleteTarget: ActiveVial?
     @State private var reconstitutionError: String?
+    @State private var reminderTarget: ActiveVial?
 
     var body: some View {
         NavigationStack {
@@ -53,6 +54,16 @@ struct DashboardView: View {
             } message: {
                 Text(reconstitutionError ?? "")
             }
+            .sheet(item: $reminderTarget) { vial in
+                if let compound = vial.compounds.first {
+                    SetReminderSheet(
+                        userId: userId,
+                        peptideId: compound.peptideId,
+                        peptideName: compound.peptideName,
+                        defaultDoseAmountMcg: compound.defaultDoseAmountMcg
+                    )
+                }
+            }
         }
         .onAppear { viewModel.startListening() }
     }
@@ -96,6 +107,9 @@ struct DashboardView: View {
             }
             ForEach(viewModel.activeVials) { vial in
                 vialRow(vial: vial)
+                if !viewModel.hasSchedule(for: vial) {
+                    reminderNudge(vial: vial)
+                }
             }
         }
         .listStyle(.plain)
@@ -129,6 +143,25 @@ struct DashboardView: View {
             }
             .tint(.green)
         }
+    }
+
+    private func reminderNudge(vial: ActiveVial) -> some View {
+        Button { reminderTarget = vial } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "bell.badge").foregroundColor(.orange).font(.caption)
+                Text("No reminder set — tap to set one")
+                    .font(.caption).foregroundColor(.orange)
+                Spacer()
+                Image(systemName: "chevron.right").font(.caption2).foregroundColor(.secondary)
+            }
+            .padding(.horizontal, 12).padding(.vertical, 8)
+            .background(Color.orange.opacity(0.08))
+            .cornerRadius(8)
+        }
+        .buttonStyle(.plain)
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
+        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 6, trailing: 16))
     }
 
     private func alertBanner(text: String, color: Color) -> some View {

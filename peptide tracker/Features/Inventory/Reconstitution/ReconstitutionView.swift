@@ -1,9 +1,11 @@
 import SwiftUI
 
 struct ReconstitutionView: View {
+    let userId: String
     @StateObject var viewModel: ReconstitutionViewModel
     @Environment(\.dismiss) var dismiss
     @State private var showAddCompound = false
+    @State private var showSetReminder = false
 
     var body: some View {
         ZStack {
@@ -110,7 +112,11 @@ struct ReconstitutionView: View {
                     Button("Confirm Reconstitution") {
                         Task {
                             try? await viewModel.confirmReconstitution()
-                            dismiss()
+                            if viewModel.entries.count == 1 {
+                                showSetReminder = true
+                            } else {
+                                dismiss()
+                            }
                         }
                     }
                     .buttonStyle(.borderedProminent)
@@ -124,6 +130,16 @@ struct ReconstitutionView: View {
         .preferredColorScheme(.dark)
         .sheet(isPresented: $showAddCompound) {
             AddCompoundSheet(viewModel: viewModel)
+        }
+        .sheet(isPresented: $showSetReminder, onDismiss: { dismiss() }) {
+            if let entry = viewModel.entries.first {
+                SetReminderSheet(
+                    userId: userId,
+                    peptideId: entry.peptide.id ?? "",
+                    peptideName: entry.peptide.name,
+                    defaultDoseAmountMcg: entry.doseAmountMcg
+                )
+            }
         }
     }
 

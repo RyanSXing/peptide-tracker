@@ -9,7 +9,8 @@ struct ContentView: View {
                 viewModel: DashboardViewModel(
                     vialRepo: VialRepository(userId: userId),
                     stockRepo: StockRepository(userId: userId),
-                    blendRepo: BlendRepository(userId: userId)
+                    blendRepo: BlendRepository(userId: userId),
+                    scheduleRepo: ScheduleRepository(userId: userId)
                 ),
                 userId: userId
             )

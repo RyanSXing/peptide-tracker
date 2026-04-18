@@ -126,6 +126,7 @@ struct InventoryView: View {
             )) {
                 if let (stock, peptide) = reconstitutionTarget {
                     ReconstitutionView(
+                        userId: userId,
                         viewModel: ReconstitutionViewModel(
                             primaryStock: stock,
                             primaryPeptide: peptide,

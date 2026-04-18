@@ -5,17 +5,20 @@ import FirebaseFirestore
 @MainActor
 final class DashboardViewModel: ObservableObject {
     @Published var activeVials: [ActiveVial] = []
+    @Published var schedules: [Schedule] = []
     @Published var isLoading = true
 
     private let vialRepo: VialRepository
     private let stockRepo: StockRepository
     private let blendRepo: BlendRepository
+    private let scheduleRepo: ScheduleRepository
     private var listeners: [ListenerRegistration] = []
 
-    init(vialRepo: VialRepository, stockRepo: StockRepository, blendRepo: BlendRepository) {
+    init(vialRepo: VialRepository, stockRepo: StockRepository, blendRepo: BlendRepository, scheduleRepo: ScheduleRepository) {
         self.vialRepo = vialRepo
         self.stockRepo = stockRepo
         self.blendRepo = blendRepo
+        self.scheduleRepo = scheduleRepo
     }
 
     func startListening() {
@@ -24,6 +27,14 @@ final class DashboardViewModel: ObservableObject {
             self?.activeVials = vials
             self?.isLoading = false
         })
+        listeners.append(scheduleRepo.listen { [weak self] in self?.schedules = $0 })
+    }
+
+    /// Returns true only for single-compound vials that have an active schedule.
+    func hasSchedule(for vial: ActiveVial) -> Bool {
+        guard !vial.isBlend, vial.compounds.count == 1,
+              let compound = vial.compounds.first else { return true }
+        return schedules.contains { $0.peptideId == compound.peptideId }
     }
 
     func stopListening() {

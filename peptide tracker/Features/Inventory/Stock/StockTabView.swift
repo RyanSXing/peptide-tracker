@@ -27,6 +27,7 @@ struct StockTabView: View {
                                     if stock.quantityOnHand > 0 {
                                         NavigationLink {
                                             ReconstitutionView(
+                                                userId: userId,
                                                 viewModel: ReconstitutionViewModel(
                                                     primaryStock: stock,
                                                     primaryPeptide: peptide,

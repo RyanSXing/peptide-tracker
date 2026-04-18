@@ -9,6 +9,7 @@ struct InventoryView: View {
     @State private var restockPeptide: Peptide?
     @State private var editPeptide: Peptide?
     @State private var reconstitutionTarget: (PeptideStock, Peptide)?
+    @State private var stockSizePicker: StockSizePickerItem?
     @State private var blendReconTarget: Blend?
     @State private var outOfStockName: String?
     @State private var restockBlend: Blend?
@@ -39,17 +40,20 @@ struct InventoryView: View {
                         if !viewModel.inventoryPeptides.isEmpty {
                             Section("Peptides") {
                                 ForEach(viewModel.inventoryPeptides) { peptide in
-                                    let count = viewModel.stockCount(for: peptide)
+                                    let peptideStocks = viewModel.stocks(for: peptide)
                                     PeptideStockRow(
                                         peptide: peptide,
-                                        stockCount: count,
+                                        stocks: peptideStocks,
                                         onEdit: { editPeptide = peptide },
                                         onRestock: { restockPeptide = peptide },
                                         onOpenVial: {
-                                            if let stock = viewModel.primaryStock(for: peptide) {
-                                                reconstitutionTarget = (stock, peptide)
-                                            } else {
+                                            let available = peptideStocks.filter { $0.quantityOnHand > 0 }
+                                            if available.isEmpty {
                                                 outOfStockName = peptide.name
+                                            } else if available.count == 1 {
+                                                reconstitutionTarget = (available[0], peptide)
+                                            } else {
+                                                stockSizePicker = StockSizePickerItem(peptide: peptide, stocks: available)
                                             }
                                         }
                                     )
@@ -147,6 +151,11 @@ struct InventoryView: View {
                     )
                 }
             }
+            .sheet(item: $stockSizePicker) { item in
+                StockSizePickerSheet(stocks: item.stocks) { chosen in
+                    reconstitutionTarget = (chosen, item.peptide)
+                }
+            }
             .sheet(isPresented: $showAddPeptide) {
                 AddPeptideInventorySheet(viewModel: viewModel)
             }
@@ -177,18 +186,28 @@ struct InventoryView: View {
     }
 }
 
-// MARK: - PeptideStockRow (unchanged)
+// MARK: - StockSizePickerItem
+struct StockSizePickerItem: Identifiable {
+    let id = UUID()
+    let peptide: Peptide
+    let stocks: [PeptideStock]
+}
+
+// MARK: - PeptideStockRow
 struct PeptideStockRow: View {
     let peptide: Peptide
-    let stockCount: Int
+    let stocks: [PeptideStock]
     let onEdit: () -> Void
     let onRestock: () -> Void
     let onOpenVial: () -> Void
 
+    private var totalCount: Int { stocks.reduce(0) { $0 + $1.quantityOnHand } }
+    private var sortedStocks: [PeptideStock] { stocks.sorted { $0.mgPerVial < $1.mgPerVial } }
+
     var body: some View {
         VStack(spacing: 10) {
             HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(peptide.name)
                         .font(.headline).foregroundColor(.white)
                     Text(String(format: "%.1fh half-life · %.0f %@ default",
@@ -196,12 +215,24 @@ struct PeptideStockRow: View {
                                 peptide.defaultDoseAmount,
                                 peptide.defaultDoseUnit.label))
                         .font(.caption).foregroundColor(.secondary)
+                    if !sortedStocks.isEmpty {
+                        HStack(spacing: 6) {
+                            ForEach(sortedStocks) { stock in
+                                Text(String(format: "%.0fmg × %d", stock.mgPerVial, stock.quantityOnHand))
+                                    .font(.caption2).bold()
+                                    .padding(.horizontal, 7).padding(.vertical, 3)
+                                    .background(stock.quantityOnHand > 0 ? Color.blue.opacity(0.18) : Color.gray.opacity(0.1))
+                                    .foregroundColor(stock.quantityOnHand > 0 ? .blue : .secondary)
+                                    .cornerRadius(5)
+                            }
+                        }
+                    }
                 }
                 Spacer()
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text("\(stockCount)")
+                    Text("\(totalCount)")
                         .font(.title2).bold()
-                        .foregroundColor(stockCount == 0 ? .orange : .white)
+                        .foregroundColor(totalCount == 0 ? .orange : .white)
                     Text("vials in stock")
                         .font(.caption2).foregroundColor(.secondary)
                 }
@@ -221,8 +252,8 @@ struct PeptideStockRow: View {
                     Text("Open Vial")
                         .font(.caption).bold()
                         .padding(.horizontal, 12).padding(.vertical, 6)
-                        .background(stockCount > 0 ? Color.green.opacity(0.15) : Color.gray.opacity(0.1))
-                        .foregroundColor(stockCount > 0 ? .green : .secondary)
+                        .background(totalCount > 0 ? Color.green.opacity(0.15) : Color.gray.opacity(0.1))
+                        .foregroundColor(totalCount > 0 ? .green : .secondary)
                         .cornerRadius(8)
                 }
                 .buttonStyle(.plain)
@@ -233,6 +264,52 @@ struct PeptideStockRow: View {
         .cornerRadius(12)
         .contentShape(Rectangle())
         .onTapGesture { onEdit() }
+    }
+}
+
+// MARK: - StockSizePickerSheet
+struct StockSizePickerSheet: View {
+    let stocks: [PeptideStock]
+    let onSelect: (PeptideStock) -> Void
+    @Environment(\.dismiss) var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List(stocks.sorted { $0.mgPerVial < $1.mgPerVial }) { stock in
+                Button {
+                    onSelect(stock)
+                    dismiss()
+                } label: {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(String(format: "%.0fmg vial", stock.mgPerVial))
+                                .font(.headline).foregroundColor(.white)
+                            Text("\(stock.quantityOnHand) in stock")
+                                .font(.caption).foregroundColor(.secondary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .buttonStyle(.plain)
+                .listRowBackground(Color(red: 0.12, green: 0.14, blue: 0.2))
+                .listRowSeparatorTint(.white.opacity(0.08))
+            }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(Color(red: 0.06, green: 0.07, blue: 0.11))
+            .navigationTitle("Choose Vial Size")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
+        }
+        .preferredColorScheme(.dark)
+        .presentationDetents([.medium])
+        .presentationDragIndicator(.visible)
     }
 }
 

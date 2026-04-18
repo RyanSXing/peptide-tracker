@@ -5,6 +5,8 @@ struct InjectSheetView: View {
     @Environment(\.dismiss) var dismiss
     @State private var showEmptyAlert = false
     @State private var openNewVialError: String?
+    @State private var stockChoices: [PeptideStock] = []
+    @State private var showStockSizePicker = false
 
     var body: some View {
         NavigationStack {
@@ -155,8 +157,14 @@ struct InjectSheetView: View {
             Button("Open New Vial") {
                 Task {
                     do {
-                        try await viewModel.openNewVial()
-                        dismiss()
+                        let choices = try await viewModel.availableStocksForVial()
+                        if choices.count > 1 {
+                            stockChoices = choices
+                            showStockSizePicker = true
+                        } else {
+                            try await viewModel.openNewVial(using: choices.first)
+                            dismiss()
+                        }
                     } catch {
                         openNewVialError = error.localizedDescription
                     }
@@ -178,6 +186,18 @@ struct InjectSheetView: View {
             }
         } message: {
             Text(openNewVialError ?? "")
+        }
+        .sheet(isPresented: $showStockSizePicker) {
+            StockSizePickerSheet(stocks: stockChoices) { chosen in
+                Task {
+                    do {
+                        try await viewModel.openNewVial(using: chosen)
+                        dismiss()
+                    } catch {
+                        openNewVialError = error.localizedDescription
+                    }
+                }
+            }
         }
         .onAppear { viewModel.startListening() }
         .onDisappear { viewModel.stopListening() }

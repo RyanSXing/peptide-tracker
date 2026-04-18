@@ -112,8 +112,20 @@ final class InjectViewModel: ObservableObject {
         try await vialRepo.delete(vialId: vialId)
     }
 
+    /// Returns available stock options for the current single-compound vial.
+    /// Returns empty for blends or multi-compound vials (handled separately).
+    func availableStocksForVial() async throws -> [PeptideStock] {
+        guard let vial = effectiveVial,
+              !vial.isBlend,
+              vial.compounds.count == 1,
+              let compound = vial.compounds.first else { return [] }
+        let candidates = try await stockRepo.fetch(for: compound.peptideId)
+        return candidates.filter { $0.quantityOnHand > 0 }.sorted { $0.mgPerVial < $1.mgPerVial }
+    }
+
     /// Opens a fresh vial from stock (or blend stock), then deletes the now-empty old vial.
-    func openNewVial() async throws {
+    /// Pass `chosenStock` for single-compound vials when the user has selected a specific size.
+    func openNewVial(using chosenStock: PeptideStock? = nil) async throws {
         guard let vial = effectiveVial, let oldId = vial.id else { return }
 
         if vial.isBlend {
@@ -137,7 +149,37 @@ final class InjectViewModel: ObservableObject {
             var updated = blend
             updated.quantityOnHand = max(0, blend.quantityOnHand - 1)
             try await blendRepo.update(updated)
+
+        } else if let stock = chosenStock, let compound = vial.compounds.first, vial.compounds.count == 1 {
+            // Single-compound with a user-chosen stock size — recalculate for the new mg amount
+            let newMg = stock.mgPerVial
+            let conc = (newMg * 1000.0) / vial.bacWaterML
+            let newTotalDoses = Int(ceil((newMg * 1000.0) / max(1, compound.defaultDoseAmountMcg)))
+            let newCompound = VialCompound(
+                peptideId: compound.peptideId,
+                peptideName: compound.peptideName,
+                mgInVial: newMg,
+                concentrationMcgPerML: conc,
+                defaultDoseAmountMcg: compound.defaultDoseAmountMcg
+            )
+            let newVial = ActiveVial(
+                stockId: stock.id ?? vial.stockId,
+                compounds: [newCompound],
+                bacWaterML: vial.bacWaterML,
+                dosesRemaining: newTotalDoses,
+                totalDoses: newTotalDoses,
+                dateConstituted: Date(),
+                estimatedExpiry: Calendar.current.date(byAdding: .day, value: 30, to: Date())!,
+                isActive: true,
+                isBlend: false
+            )
+            try await vialRepo.add(newVial)
+            var updated = stock
+            updated.quantityOnHand = max(0, stock.quantityOnHand - 1)
+            try await stockRepo.update(updated)
+
         } else {
+            // Multi-compound or no explicit choice — auto-pick best available stock per compound
             var stocksToDecrement: [PeptideStock] = []
             for compound in vial.compounds {
                 let candidates = try await stockRepo.fetch(for: compound.peptideId)
@@ -149,7 +191,7 @@ final class InjectViewModel: ObservableObject {
                 stocksToDecrement.append(stock)
             }
             let newVial = ActiveVial(
-                stockId: vial.stockId,
+                stockId: stocksToDecrement.first?.id ?? vial.stockId,
                 compounds: vial.compounds,
                 bacWaterML: vial.bacWaterML,
                 dosesRemaining: vial.totalDoses,

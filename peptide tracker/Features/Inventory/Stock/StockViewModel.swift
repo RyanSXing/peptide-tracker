@@ -43,6 +43,14 @@ final class StockViewModel: ObservableObject {
         stockItems.filter { $0.peptideId == peptide.id }.reduce(0) { $0 + $1.quantityOnHand }
     }
 
+    func stocks(for peptide: Peptide) -> [PeptideStock] {
+        stockItems.filter { $0.peptideId == peptide.id }
+    }
+
+    func availableStocks(for peptide: Peptide) -> [PeptideStock] {
+        stockItems.filter { $0.peptideId == peptide.id && $0.quantityOnHand > 0 }
+    }
+
     func primaryStock(for peptide: Peptide) -> PeptideStock? {
         stockItems.first { $0.peptideId == peptide.id && $0.quantityOnHand > 0 }
     }

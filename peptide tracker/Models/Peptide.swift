@@ -1,4 +1,5 @@
 import FirebaseFirestore
+import SwiftUI
 
 enum DoseUnit: String, Codable, CaseIterable, Identifiable {
     case mcg, mg, iu = "IU"
@@ -26,6 +27,15 @@ struct Peptide: Codable, Identifiable, Hashable {
     var defaultDoseUnit: DoseUnit
     var createdAt: Date
     var isBlendOnly: Bool = false
+    var color: String?
+
+    /// Returns the custom color if set, otherwise generates a deterministic color from the peptide name
+    var displayColor: Color {
+        if let colorString = color, let customColor = Color(hex: colorString) {
+            return customColor
+        }
+        return ColorGenerator.color(for: name)
+    }
 
     static func == (lhs: Peptide, rhs: Peptide) -> Bool { lhs.id == rhs.id }
     func hash(into hasher: inout Hasher) { hasher.combine(id) }

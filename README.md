@@ -39,6 +39,18 @@ A personal health-tracking iOS app for managing peptide protocols — inventory,
 - **Toggle modes** — switch between absolute concentration (mcg) and normalized % of peak; per-compound filter chips hide/show individual curves
 - **"Now" marker** — a dashed rule line marks the current time on the chart
 
+## Graph View Features
+
+### Color Consistency
+- Peptides maintain consistent colors regardless of visibility
+- Colors generated deterministically from peptide names
+- Customizable colors via Settings > Peptide Management
+
+### Time Range Selection
+- Choose from 7 days, 30 days, 90 days, or all time
+- Horizontal scrolling through time range
+- "Now" marker shows current time position
+
 ### Scheduling & Notifications
 - **Dosing schedules** — daily, every-other-day, or 3×/week frequencies
 - **Local push notifications** — uses `UNUserNotificationCenter`; notification IDs stored per schedule in Firestore for reliable reschedule on each injection

@@ -15,6 +15,7 @@ struct HalfLifeChartView: View {
     @State private var normalized = false
     @State private var hiddenPeptides: Set<String> = []
     @State private var timeRange: TimeRange = .last90Days
+    @State private var scrollPosition: Date = Date()
 
     private let lineStyles: [StrokeStyle] = [
         StrokeStyle(lineWidth: 2),
@@ -37,11 +38,12 @@ struct HalfLifeChartView: View {
             let peptideLogs = logs.filter { $0.peptideId == peptide.id }
             guard !peptideLogs.isEmpty else { continue }
             let doses = peptideLogs.map { (amount: $0.doseAmount, timestamp: $0.timestamp) }
-            let days = max(1, Int(peptide.halfLifeHours * 4 / 24))
             let rawData = HalfLifeService.chartData(
                 doses: doses,
                 halfLifeHours: peptide.halfLifeHours,
-                days: days
+                startDate: timeRange.startDate,
+                endDate: timeRange.endDate,
+                intervalHours: timeRange.sampleIntervalHours
             )
             let maxConc = rawData.map(\.concentration).max() ?? 1.0
             result[peptide.name] = rawData.map { dp in
@@ -66,7 +68,8 @@ struct HalfLifeChartView: View {
         ForEach(points) { point in
             LineMark(
                 x: .value("Time", point.date),
-                y: .value(yLabel, point.value)
+                y: .value(yLabel, point.value),
+                series: .value("Peptide", name)
             )
             .foregroundStyle(colorForPeptide(named: name))
             .lineStyle(style)
@@ -78,6 +81,12 @@ struct HalfLifeChartView: View {
             return peptide.displayColor
         }
         return ColorGenerator.color(for: name)
+    }
+
+    private func scrollToRightEdge(for range: TimeRange) {
+        let endDate = range.endDate
+        let visibleDuration = min(range.visibleDuration, range.duration)
+        scrollPosition = endDate.addingTimeInterval(-visibleDuration)
     }
 
     var body: some View {
@@ -163,6 +172,8 @@ struct HalfLifeChartView: View {
                 .if(normalized) { $0.chartYScale(domain: 0.0...105.0) }
                 .chartScrollableAxes(.horizontal)
                 .chartXScale(domain: timeRange.startDate...timeRange.endDate)
+                .chartXVisibleDomain(length: min(timeRange.visibleDuration, timeRange.duration))
+                .chartScrollPosition(x: $scrollPosition)
                 .frame(height: 220)
                 .padding(.horizontal)
             }
@@ -170,6 +181,12 @@ struct HalfLifeChartView: View {
             .background(Color(red: 0.12, green: 0.14, blue: 0.2))
             .cornerRadius(12)
             .padding(.horizontal)
+            .onAppear {
+                scrollToRightEdge(for: timeRange)
+            }
+            .onChange(of: timeRange) { _, newRange in
+                scrollToRightEdge(for: newRange)
+            }
         }
     }
 }

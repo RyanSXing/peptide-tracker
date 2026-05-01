@@ -3,21 +3,16 @@ import SwiftUI
 extension Color {
     init?(hex: String) {
         let hexString = hex.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
-        let scanner = Scanner(string: hexString)
-
-        if hexString.hasPrefix("#") {
-            scanner.scanLocation = 1
-        }
+        let scanner = Scanner(string: hexString.hasPrefix("#") ? String(hexString.dropFirst()) : hexString)
 
         var color: UInt64 = 0
         guard scanner.scanHexInt64(&color) else {
             return nil
         }
 
-        let length = hexString.count
+        let length = hexString.hasPrefix("#") ? hexString.count - 1 : hexString.count
         if hexString.hasPrefix("#") {
-            let lengthWithoutHash = length - 1
-            if lengthWithoutHash == 3 {
+            if length == 3 {
                 let r = Int((color >> 8) & 0xF)
                 let g = Int((color >> 4) & 0xF)
                 let b = Int(color & 0xF)
@@ -27,7 +22,7 @@ extension Color {
                     blue: Double(b * 17) / 255.0,
                     opacity: 1.0
                 )
-            } else if lengthWithoutHash == 6 {
+            } else if length == 6 {
                 let r = Int((color >> 16) & 0xFF)
                 let g = Int((color >> 8) & 0xFF)
                 let b = Int(color & 0xFF)
@@ -37,7 +32,7 @@ extension Color {
                     blue: Double(b) / 255.0,
                     opacity: 1.0
                 )
-            } else if lengthWithoutHash == 8 {
+            } else if length == 8 {
                 let r = Int((color >> 24) & 0xFF)
                 let g = Int((color >> 16) & 0xFF)
                 let b = Int((color >> 8) & 0xFF)

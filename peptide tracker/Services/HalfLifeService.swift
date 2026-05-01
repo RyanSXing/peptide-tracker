@@ -37,4 +37,40 @@ enum HalfLifeService {
             return DataPoint(date: date, concentration: conc)
         }
     }
+
+    /// Generate chart data points over an explicit date range.
+    static func chartData(
+        doses: [(amount: Double, timestamp: Date)],
+        halfLifeHours: Double,
+        startDate: Date,
+        endDate: Date,
+        intervalHours: Double
+    ) -> [DataPoint] {
+        guard halfLifeHours > 0,
+              intervalHours > 0,
+              startDate <= endDate else {
+            return []
+        }
+
+        let interval = intervalHours * 3600
+        var points: [DataPoint] = []
+        var date = startDate
+
+        while date <= endDate {
+            points.append(DataPoint(
+                date: date,
+                concentration: concentration(doses: doses, halfLifeHours: halfLifeHours, at: date)
+            ))
+            date = date.addingTimeInterval(interval)
+        }
+
+        if points.last?.date != endDate {
+            points.append(DataPoint(
+                date: endDate,
+                concentration: concentration(doses: doses, halfLifeHours: halfLifeHours, at: endDate)
+            ))
+        }
+
+        return points
+    }
 }

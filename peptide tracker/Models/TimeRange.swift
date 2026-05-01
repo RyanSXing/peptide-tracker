@@ -26,6 +26,38 @@ enum TimeRange: CaseIterable {
         Date()
     }
 
+    var duration: TimeInterval {
+        endDate.timeIntervalSince(startDate)
+    }
+
+    var visibleDuration: TimeInterval {
+        let day: TimeInterval = 24 * 60 * 60
+
+        switch self {
+        case .last7Days:
+            return 7 * day
+        case .last30Days:
+            return 7 * day
+        case .last90Days:
+            return 14 * day
+        case .allTime:
+            return 30 * day
+        }
+    }
+
+    var sampleIntervalHours: Double {
+        switch self {
+        case .last7Days:
+            return 1
+        case .last30Days:
+            return 2
+        case .last90Days:
+            return 6
+        case .allTime:
+            return 12
+        }
+    }
+
     var displayName: String {
         switch self {
         case .last7Days:

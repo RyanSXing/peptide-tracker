@@ -15,7 +15,11 @@ final class LoginViewModel: ObservableObject {
 
     private let firebase: FirebaseManager
 
-    init(firebase: FirebaseManager = .shared) {
+    convenience init() {
+        self.init(firebase: .shared)
+    }
+
+    init(firebase: FirebaseManager) {
         self.firebase = firebase
     }
 

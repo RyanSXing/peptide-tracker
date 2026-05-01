@@ -5,7 +5,11 @@ struct LoginView: View {
     @StateObject private var viewModel: LoginViewModel
     let onCompletion: () -> Void
 
-    init(firebase: FirebaseManager = .shared, onCompletion: @escaping () -> Void) {
+    init(onCompletion: @escaping () -> Void) {
+        self.init(firebase: .shared, onCompletion: onCompletion)
+    }
+
+    init(firebase: FirebaseManager, onCompletion: @escaping () -> Void) {
         self._viewModel = StateObject(wrappedValue: LoginViewModel(firebase: firebase))
         self.onCompletion = onCompletion
     }

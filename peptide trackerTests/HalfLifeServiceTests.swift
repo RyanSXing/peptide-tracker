@@ -56,4 +56,43 @@ final class HalfLifeServiceTests: XCTestCase {
         // 7 days * 24 hours + 1 = 169 points (0...168)
         XCTAssertEqual(points.count, 169)
     }
+
+    func test_chartDataWithExplicitRange_startsAndEndsAtRequestedDates() {
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        let end = start.addingTimeInterval(6 * 3600)
+        let doses = [(amount: 100.0, timestamp: start)]
+
+        let points = HalfLifeService.chartData(
+            doses: doses,
+            halfLifeHours: 4.0,
+            startDate: start,
+            endDate: end,
+            intervalHours: 2.0
+        )
+
+        XCTAssertEqual(points.first?.date, start)
+        XCTAssertEqual(points.last?.date, end)
+        XCTAssertEqual(points.count, 4)
+    }
+
+    func test_chartDataWithExplicitRange_appendsEndDateWhenIntervalDoesNotLandExactly() {
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        let end = start.addingTimeInterval(5 * 3600)
+        let doses = [(amount: 100.0, timestamp: start)]
+
+        let points = HalfLifeService.chartData(
+            doses: doses,
+            halfLifeHours: 4.0,
+            startDate: start,
+            endDate: end,
+            intervalHours: 2.0
+        )
+
+        XCTAssertEqual(points.map(\.date), [
+            start,
+            start.addingTimeInterval(2 * 3600),
+            start.addingTimeInterval(4 * 3600),
+            end
+        ])
+    }
 }

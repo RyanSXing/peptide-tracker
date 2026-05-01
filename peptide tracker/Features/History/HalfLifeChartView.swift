@@ -14,6 +14,7 @@ struct HalfLifeChartView: View {
 
     @State private var normalized = false
     @State private var hiddenPeptides: Set<String> = []
+    @State private var timeRange: TimeRange = .last90Days
 
     private let lineStyles: [StrokeStyle] = [
         StrokeStyle(lineWidth: 2),
@@ -67,9 +68,16 @@ struct HalfLifeChartView: View {
                 x: .value("Time", point.date),
                 y: .value(yLabel, point.value)
             )
-            .foregroundStyle(by: .value("Peptide", name))
+            .foregroundStyle(colorForPeptide(named: name))
             .lineStyle(style)
         }
+    }
+
+    private func colorForPeptide(named name: String) -> Color {
+        if let peptide = peptides.first(where: { $0.name == name }) {
+            return peptide.displayColor
+        }
+        return ColorGenerator.color(for: name)
     }
 
     var body: some View {
@@ -85,6 +93,15 @@ struct HalfLifeChartView: View {
                 Picker("Scale", selection: $normalized) {
                     Text("Absolute").tag(false)
                     Text("% of Peak").tag(true)
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal)
+
+                // Time range picker
+                Picker("Time Range", selection: $timeRange) {
+                    ForEach(TimeRange.allCases, id: \.self) { range in
+                        Text(range.displayName).tag(range)
+                    }
                 }
                 .pickerStyle(.segmented)
                 .padding(.horizontal)
@@ -144,6 +161,8 @@ struct HalfLifeChartView: View {
                 }
                 .chartYAxisLabel(normalized ? "% of Peak" : "Concentration (mcg)")
                 .if(normalized) { $0.chartYScale(domain: 0.0...105.0) }
+                .chartScrollableAxes(.horizontal)
+                .chartXScale(domain: timeRange.startDate...timeRange.endDate)
                 .frame(height: 220)
                 .padding(.horizontal)
             }

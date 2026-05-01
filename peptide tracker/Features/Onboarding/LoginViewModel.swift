@@ -83,16 +83,16 @@ final class LoginViewModel: ObservableObject {
 
         GIDSignIn.sharedInstance.signIn(withPresenting: rootViewController) { result, error in
             Task { @MainActor in
-                isLoading = false
+                self.isLoading = false
 
-                if let error = error {
-                    errorMessage = "Google Sign-In failed. Please try again."
+                if error != nil {
+                    self.errorMessage = "Google Sign-In failed. Please try again."
                     return
                 }
 
                 guard let user = result?.user,
                       let idToken = user.idToken?.tokenString else {
-                    errorMessage = "Google Sign-In failed. Please try again."
+                    self.errorMessage = "Google Sign-In failed. Please try again."
                     return
                 }
 
@@ -104,9 +104,9 @@ final class LoginViewModel: ObservableObject {
                 )
 
                 do {
-                    try await firebase.linkCurrentUserOrSignIn(with: credential)
+                    try await self.firebase.linkCurrentUserOrSignIn(with: credential)
                 } catch {
-                    errorMessage = "Google Sign-In failed. Please try again."
+                    self.errorMessage = "Google Sign-In failed. Please try again."
                 }
             }
         }

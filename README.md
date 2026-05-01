@@ -6,6 +6,12 @@ A personal health-tracking iOS app for managing peptide protocols — inventory,
 
 ## Features
 
+### Onboarding
+- **First-time login screen** - centered card with Apple, Google, Email, and Anonymous options
+- **One-time prompt** - login screen only appears on first app launch
+- **Flexible auth** - users can skip login and upgrade later via Settings
+- **Extensible flow** - Onboarding Coordinator pattern supports future onboarding steps
+
 ### Dashboard
 - **Vial-centric view** — each active vial displayed as a card with a visual liquid-level indicator showing remaining doses
 - **Inline injection** — tap any vial card to open the injection sheet with that vial pre-selected
@@ -122,9 +128,17 @@ C(t) = Σ [ doseᵢ × 0.5^( (t − tᵢ) / t½ ) ]
 
 1. Clone the repo
 2. Add your `GoogleService-Info.plist` to the `peptide tracker/` target directory (not committed)
-3. Enable **Anonymous Authentication** in your Firebase project console
+3. Enable **Authentication** providers in your Firebase project console:
+   - Anonymous Authentication
+   - Apple
+   - Email link / passwordless sign-in
 4. Enable **Firestore** and deploy with default rules (auth-scoped)
-5. Open `peptide tracker.xcodeproj` in Xcode 15+ and run on a simulator or device (iOS 16+)
+5. In Apple Developer / Xcode Signing & Capabilities, enable **Sign in with Apple** for the app target
+6. For email links, add an authorized Firebase/Auth action domain and update the `ActionCodeSettings.url` in `FirebaseManager`
+7. Open `peptide tracker.xcodeproj` in Xcode 15+ and run on a simulator or device (iOS 16+)
+8. For Google Sign-In, add the Google Sign-In SDK via Swift Package Manager:
+   - Package URL: `https://github.com/google/GoogleSignIn-iOS`
+   - Add to "peptide tracker" target
 
 > Firebase config file is gitignored. The app will not launch without it.
 

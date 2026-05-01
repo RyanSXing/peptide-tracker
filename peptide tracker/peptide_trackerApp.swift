@@ -11,16 +11,20 @@ struct peptide_trackerApp: App {
     var body: some Scene {
         WindowGroup {
             Group {
-                if let userId = firebase.userId {
-                    ContentView(userId: userId)
-                        .task {
-                            _ = await NotificationService.requestPermission()
-                        }
+                if OnboardingCoordinator.hasCompletedOnboarding() {
+                    if let userId = firebase.userId {
+                        ContentView(userId: userId)
+                            .task {
+                                _ = await NotificationService.requestPermission()
+                            }
+                    } else {
+                        ProgressView("Setting up...")
+                            .task {
+                                try? await FirebaseManager.shared.signInAnonymously()
+                            }
+                    }
                 } else {
-                    ProgressView("Setting up...")
-                        .task {
-                            try? await FirebaseManager.shared.signInAnonymously()
-                        }
+                    OnboardingCoordinator()
                 }
             }
         }

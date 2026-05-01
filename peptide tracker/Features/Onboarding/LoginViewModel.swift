@@ -1,5 +1,8 @@
 import AuthenticationServices
+import FirebaseAuth
+import FirebaseCore
 import Foundation
+import GoogleSignIn
 import SwiftUI
 
 @MainActor
@@ -59,8 +62,54 @@ final class LoginViewModel: ObservableObject {
     }
 
     func signInWithGoogle() {
-        // Google Sign-In will be implemented in a separate task
-        errorMessage = "Google Sign-In not yet implemented."
+        isLoading = true
+        errorMessage = nil
+
+        guard let clientID = FirebaseApp.app()?.options.clientID else {
+            errorMessage = "Google Sign-In configuration error."
+            isLoading = false
+            return
+        }
+
+        let config = GIDConfiguration(clientID: clientID)
+        GIDSignIn.sharedInstance.configuration = config
+
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let rootViewController = windowScene.windows.first?.rootViewController else {
+            errorMessage = "Unable to present Google Sign-In."
+            isLoading = false
+            return
+        }
+
+        GIDSignIn.sharedInstance.signIn(withPresenting: rootViewController) { result, error in
+            Task { @MainActor in
+                isLoading = false
+
+                if let error = error {
+                    errorMessage = "Google Sign-In failed. Please try again."
+                    return
+                }
+
+                guard let user = result?.user,
+                      let idToken = user.idToken?.tokenString else {
+                    errorMessage = "Google Sign-In failed. Please try again."
+                    return
+                }
+
+                let accessToken = user.accessToken.tokenString
+
+                let credential = GoogleAuthProvider.credential(
+                    withIDToken: idToken,
+                    accessToken: accessToken
+                )
+
+                do {
+                    try await firebase.linkCurrentUserOrSignIn(with: credential)
+                } catch {
+                    errorMessage = "Google Sign-In failed. Please try again."
+                }
+            }
+        }
     }
 
     func sendEmailSignInLink() async {

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct PeptideManagementView: View {
     @ObservedObject var viewModel: SettingsViewModel
@@ -18,6 +19,59 @@ struct PeptideManagementView: View {
                         } else {
                             Text("No schedule").font(.caption).foregroundColor(.orange)
                         }
+                        HStack {
+                            Text("Color")
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            if let colorHex = peptide.color {
+                                ColorPicker("", selection: Binding(
+                                    get: { Color(hex: colorHex) ?? .gray },
+                                    set: { newColor in
+                                        let uiColor = UIColor(newColor)
+                                        var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
+                                        uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+                                        let hex = String(
+                                            format: "#%02X%02X%02X",
+                                            Int(red * 255),
+                                            Int(green * 255),
+                                            Int(blue * 255)
+                                        )
+                                        var updatedPeptide = peptide
+                                        updatedPeptide.color = hex
+                                        viewModel.updatePeptide(updatedPeptide)
+                                    }
+                                ))
+                                .labelsHidden()
+                                Button(action: {
+                                    var updatedPeptide = peptide
+                                    updatedPeptide.color = nil
+                                    viewModel.updatePeptide(updatedPeptide)
+                                }) {
+                                    Image(systemName: "arrow.counterclockwise")
+                                        .foregroundColor(.secondary)
+                                }
+                            } else {
+                                ColorPicker("", selection: Binding(
+                                    get: { peptide.displayColor },
+                                    set: { newColor in
+                                        let uiColor = UIColor(newColor)
+                                        var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
+                                        uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+                                        let hex = String(
+                                            format: "#%02X%02X%02X",
+                                            Int(red * 255),
+                                            Int(green * 255),
+                                            Int(blue * 255)
+                                        )
+                                        var updatedPeptide = peptide
+                                        updatedPeptide.color = hex
+                                        viewModel.updatePeptide(updatedPeptide)
+                                    }
+                                ))
+                                .labelsHidden()
+                            }
+                        }
+                        .padding(.vertical, 4)
                     }
                     .padding(.vertical, 4)
                 }

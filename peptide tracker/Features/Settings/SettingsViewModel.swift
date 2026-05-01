@@ -55,6 +55,12 @@ final class SettingsViewModel: ObservableObject {
         try await peptideRepo.delete(id: id)
     }
 
+    func updatePeptide(_ peptide: Peptide) {
+        Task {
+            try? await peptideRepo.update(peptide)
+        }
+    }
+
     func clearAllData() async throws {
         let db = Firestore.firestore().collection("users").document(userId)
         for colName in ["peptides", "peptideStock", "activeVials", "injectionLogs", "schedules", "blends"] {

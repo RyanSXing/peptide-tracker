@@ -32,8 +32,13 @@ final class VialRepository {
     }
 
     func listen(onChange: @escaping ([ActiveVial]) -> Void) -> ListenerRegistration {
-        collection.whereField("isActive", isEqualTo: true).addSnapshotListener { snap, _ in
-            let vials = snap?.documents.compactMap { try? $0.data(as: ActiveVial.self) } ?? []
+        collection.whereField("isActive", isEqualTo: true).addSnapshotListener(includeMetadataChanges: true) { snap, error in
+            guard error == nil else {
+                onChange([])
+                return
+            }
+            guard let snap, FirestoreSnapshotPolicy.shouldRenderSnapshot(snap.metadata) else { return }
+            let vials = snap.documents.compactMap { try? $0.data(as: ActiveVial.self) }
             onChange(vials)
         }
     }

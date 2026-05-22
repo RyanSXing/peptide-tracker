@@ -26,8 +26,13 @@ final class LogRepository {
         return collection
             .whereField("timestamp", isGreaterThan: cutoff)
             .order(by: "timestamp", descending: true)
-            .addSnapshotListener { snap, _ in
-                let logs = snap?.documents.compactMap { try? $0.data(as: InjectionLog.self) } ?? []
+            .addSnapshotListener(includeMetadataChanges: true) { snap, error in
+                guard error == nil else {
+                    onChange([])
+                    return
+                }
+                guard let snap, FirestoreSnapshotPolicy.shouldRenderSnapshot(snap.metadata) else { return }
+                let logs = snap.documents.compactMap { try? $0.data(as: InjectionLog.self) }
                 onChange(logs)
             }
     }

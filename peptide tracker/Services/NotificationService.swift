@@ -12,6 +12,19 @@ enum NotificationService {
         return (try? await center.requestAuthorization(options: [.alert, .badge, .sound])) ?? false
     }
 
+    static func hasPermission() async -> Bool {
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        return settings.authorizationStatus == .authorized
+    }
+
+    static func reminderContent(peptideName: String, doseAmount: Double, doseUnit: DoseUnit) -> UNMutableNotificationContent {
+        let content = UNMutableNotificationContent()
+        content.title = "Protocol reminder"
+        content.body = "Open Peptide Tracker to review your scheduled entry."
+        content.sound = .default
+        return content
+    }
+
     /// Schedule up to `slotsPerPeptide` notifications for a schedule.
     /// Cancels existing notifications for this peptide first.
     /// Returns the notification IDs that were scheduled (save to schedule.notificationIds).
@@ -30,10 +43,11 @@ enum NotificationService {
         var ids: [String] = []
 
         for date in dates {
-            let content = UNMutableNotificationContent()
-            content.title = "Time to inject \(peptideName)"
-            content.body = "\(schedule.doseAmount) \(schedule.doseUnit.label)"
-            content.sound = .default
+            let content = reminderContent(
+                peptideName: peptideName,
+                doseAmount: schedule.doseAmount,
+                doseUnit: schedule.doseUnit
+            )
 
             let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: date)
             let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)

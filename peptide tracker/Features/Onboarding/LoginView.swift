@@ -1,4 +1,5 @@
 import AuthenticationServices
+import Combine
 import SwiftUI
 
 struct LoginView: View {
@@ -35,8 +36,9 @@ struct LoginView: View {
                             )
                             .frame(width: 80, height: 80)
 
-                        Text("💉")
-                            .font(.system(size: 32))
+                        Image(systemName: "cross.case.fill")
+                            .font(.system(size: 30, weight: .semibold))
+                            .foregroundColor(.white)
                     }
 
                     Text("Peptide Tracker")
@@ -44,7 +46,7 @@ struct LoginView: View {
                         .fontWeight(.bold)
                         .foregroundColor(.white)
 
-                    Text("Track your protocols with confidence")
+                    Text("Track clinician-prescribed protocols with confidence")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
@@ -142,12 +144,26 @@ struct LoginView: View {
 
                 Spacer()
 
-                // Terms of service
-                Text("By continuing, you agree to our Terms of Service")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .padding(.bottom, 32)
+                VStack(spacing: 8) {
+                    Text(LegalContent.medicalDisclaimer)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    HStack(spacing: 12) {
+                        Link("Privacy", destination: LegalContent.privacyPolicyURL)
+                        Link("Terms", destination: LegalContent.termsOfServiceURL)
+                        Link("Support", destination: LegalContent.supportURL)
+                    }
+                    .font(.caption.weight(.semibold))
+                }
+                .padding(.horizontal, 32)
+                .padding(.bottom, 32)
             }
+        }
+        .onReceive(FirebaseManager.shared.$userId.compactMap { $0 }.removeDuplicates()) { _ in
+            onCompletion()
         }
     }
 }

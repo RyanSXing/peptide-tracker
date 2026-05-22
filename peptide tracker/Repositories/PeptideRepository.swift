@@ -29,8 +29,13 @@ final class PeptideRepository {
     }
 
     func listen(onChange: @escaping ([Peptide]) -> Void) -> ListenerRegistration {
-        collection.order(by: "createdAt").addSnapshotListener { snap, _ in
-            let peptides = snap?.documents.compactMap { try? $0.data(as: Peptide.self) } ?? []
+        collection.order(by: "createdAt").addSnapshotListener(includeMetadataChanges: true) { snap, error in
+            guard error == nil else {
+                onChange([])
+                return
+            }
+            guard let snap, FirestoreSnapshotPolicy.shouldRenderSnapshot(snap.metadata) else { return }
+            let peptides = snap.documents.compactMap { try? $0.data(as: Peptide.self) }
             onChange(peptides)
         }
     }

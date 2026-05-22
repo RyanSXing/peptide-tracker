@@ -102,6 +102,7 @@ struct SetReminderSheet: View {
                 var newSched = sched
                 newSched.id = schedId
                 let slots = NotificationService.slotsPerPeptide(activePeptideCount: 1)
+                _ = await NotificationService.requestPermission()
                 let ids = await NotificationService.schedule(for: newSched, peptideName: peptideName, slotsPerPeptide: slots)
                 try? await scheduleRepo.updateNotificationIds(ids, for: schedId)
             }

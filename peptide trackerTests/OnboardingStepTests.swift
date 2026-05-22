@@ -1,6 +1,7 @@
 import XCTest
 @testable import peptide_tracker
 
+@MainActor
 final class OnboardingStepTests: XCTestCase {
 
     func testEquatableConformance() {

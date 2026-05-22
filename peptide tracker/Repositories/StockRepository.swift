@@ -32,8 +32,13 @@ final class StockRepository {
     }
 
     func listen(onChange: @escaping ([PeptideStock]) -> Void) -> ListenerRegistration {
-        collection.addSnapshotListener { snap, _ in
-            let items = snap?.documents.compactMap { try? $0.data(as: PeptideStock.self) } ?? []
+        collection.addSnapshotListener(includeMetadataChanges: true) { snap, error in
+            guard error == nil else {
+                onChange([])
+                return
+            }
+            guard let snap, FirestoreSnapshotPolicy.shouldRenderSnapshot(snap.metadata) else { return }
+            let items = snap.documents.compactMap { try? $0.data(as: PeptideStock.self) }
             onChange(items)
         }
     }

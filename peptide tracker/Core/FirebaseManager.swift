@@ -9,10 +9,13 @@ import Security
 @MainActor
 final class FirebaseManager: ObservableObject {
     static let shared = FirebaseManager()
+    nonisolated static let emailSignInURL = URL(string: "https://peptide-tracker.firebaseapp.com/email-sign-in")!
+
     @Published var userId: String?
     @Published var accountStatus = AccountStatus(isAnonymous: true, email: nil, providerIds: [])
 
     private var authStateHandle: AuthStateDidChangeListenerHandle?
+    private let pendingEmailSignInKey = "pendingEmailSignInAddress"
 
     private init() {}
 
@@ -61,11 +64,13 @@ final class FirebaseManager: ObservableObject {
     }
 
     func sendEmailSignInLink(to email: String) async throws {
+        let email = email.trimmingCharacters(in: .whitespacesAndNewlines)
         let settings = ActionCodeSettings()
-        settings.url = URL(string: "https://peptide-tracker.firebaseapp.com/email-sign-in")
+        settings.url = Self.emailSignInURL
         settings.handleCodeInApp = true
         settings.iOSBundleID = Bundle.main.bundleIdentifier
         try await Auth.auth().sendSignInLink(toEmail: email, actionCodeSettings: settings)
+        UserDefaults.standard.set(email, forKey: pendingEmailSignInKey)
     }
 
     func linkOrSignInWithEmail(email: String, link: String) async throws {
@@ -76,6 +81,22 @@ final class FirebaseManager: ObservableObject {
         try await linkCurrentUserOrSignIn(with: credential)
     }
 
+    @discardableResult
+    func completeEmailSignInIfPossible(with link: String) async throws -> Bool {
+        guard Auth.auth().isSignIn(withEmailLink: link) else {
+            return false
+        }
+
+        guard let email = UserDefaults.standard.string(forKey: pendingEmailSignInKey),
+              !email.isEmpty else {
+            throw AuthFlowError.missingEmailForLink
+        }
+
+        try await linkOrSignInWithEmail(email: email, link: link)
+        UserDefaults.standard.removeObject(forKey: pendingEmailSignInKey)
+        return true
+    }
+
     func linkCurrentUserOrSignIn(with credential: AuthCredential) async throws {
         if let currentUser = Auth.auth().currentUser, currentUser.isAnonymous {
             let result = try await currentUser.link(with: credential)
@@ -84,6 +105,16 @@ final class FirebaseManager: ObservableObject {
             let result = try await Auth.auth().signIn(with: credential)
             applyUser(result.user)
         }
+    }
+
+    func revokeAppleToken(authorizationCode: String) async throws {
+        try await Auth.auth().revokeToken(withAuthorizationCode: authorizationCode)
+    }
+
+    func deleteCurrentUser() async throws {
+        guard let user = Auth.auth().currentUser else { return }
+        try await user.delete()
+        applyUser(nil)
     }
 
     private func applyUser(_ user: User?) {
@@ -125,6 +156,7 @@ enum AuthFlowError: LocalizedError {
     case missingAppleIdentityToken
     case missingAppleNonce
     case invalidEmailLink
+    case missingEmailForLink
     case nonceGenerationFailed
 
     var errorDescription: String? {
@@ -137,6 +169,8 @@ enum AuthFlowError: LocalizedError {
             return "The Apple sign-in request expired. Please try again."
         case .invalidEmailLink:
             return "That does not look like a valid sign-in link."
+        case .missingEmailForLink:
+            return "Enter your email address before opening the sign-in link."
         case .nonceGenerationFailed:
             return "Could not prepare Apple sign-in securely. Please try again."
         }

@@ -14,9 +14,6 @@ struct peptide_trackerApp: App {
                 if OnboardingCoordinator.hasCompletedOnboarding() {
                     if let userId = firebase.userId {
                         ContentView(userId: userId)
-                            .task {
-                                _ = await NotificationService.requestPermission()
-                            }
                     } else {
                         ProgressView("Setting up...")
                             .task {
@@ -27,6 +24,21 @@ struct peptide_trackerApp: App {
                     OnboardingCoordinator()
                 }
             }
+            .onOpenURL { url in
+                handleIncomingURL(url)
+            }
+            .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
+                guard let url = activity.webpageURL else { return }
+                handleIncomingURL(url)
+            }
+        }
+    }
+
+    private func handleIncomingURL(_ url: URL) {
+        Task {
+            _ = try? await FirebaseManager.shared.completeEmailSignInIfPossible(
+                with: url.absoluteString
+            )
         }
     }
 }

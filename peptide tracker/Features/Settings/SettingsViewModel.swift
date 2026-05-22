@@ -20,6 +20,7 @@ final class SettingsViewModel: ObservableObject {
     @Published var isSendingEmailLink = false
     @Published var isCompletingEmailSignIn = false
     @Published var isSigningInWithGoogle = false
+    @Published var isDeletingAccount = false
     @Published var isLoading = false
 
     private let peptideRepo: PeptideRepository
@@ -28,6 +29,11 @@ final class SettingsViewModel: ObservableObject {
     private let userId: String
     private var listeners: [ListenerRegistration] = []
     private var currentAppleNonce: String?
+    private var currentAppleDeletionNonce: String?
+
+    var requiresAppleAuthorizationForDeletion: Bool {
+        accountStatus.providerIds.contains("apple.com")
+    }
 
     init(
         userId: String,
@@ -48,10 +54,18 @@ final class SettingsViewModel: ObservableObject {
     func startListening() {
         listeners.append(peptideRepo.listen { [weak self] in self?.peptides = $0 })
         listeners.append(scheduleRepo.listen { [weak self] in self?.schedules = $0 })
-        Task { notificationsEnabled = await NotificationService.requestPermission() }
+        Task { await refreshNotificationStatus() }
     }
 
     func stopListening() { listeners.forEach { $0.remove() }; listeners.removeAll() }
+
+    func refreshNotificationStatus() async {
+        notificationsEnabled = await NotificationService.hasPermission()
+    }
+
+    func requestNotificationPermission() async {
+        notificationsEnabled = await NotificationService.requestPermission()
+    }
 
     func prepareAppleSignIn(_ request: ASAuthorizationAppleIDRequest) {
         do {
@@ -96,6 +110,46 @@ final class SettingsViewModel: ObservableObject {
             authError = error.localizedDescription
         }
         currentAppleNonce = nil
+    }
+
+    func prepareAppleAccountDeletion(_ request: ASAuthorizationAppleIDRequest) {
+        do {
+            let nonce = try FirebaseManager.shared.makeAppleNonce()
+            currentAppleDeletionNonce = nonce
+            request.requestedScopes = []
+            request.nonce = FirebaseManager.shared.sha256(nonce)
+            authError = nil
+            authMessage = nil
+        } catch {
+            authError = error.localizedDescription
+        }
+    }
+
+    func handleAppleAccountDeletion(_ result: Result<ASAuthorization, Error>) async {
+        do {
+            guard case let .success(authorization) = result else {
+                if case let .failure(error) = result {
+                    throw error
+                }
+                return
+            }
+            guard authorization.credential is ASAuthorizationAppleIDCredential else {
+                throw AuthFlowError.invalidAppleCredential
+            }
+            guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
+                  let authorizationCode = credential.authorizationCode,
+                  let authorizationCodeString = String(data: authorizationCode, encoding: .utf8) else {
+                throw AuthFlowError.missingAppleIdentityToken
+            }
+            guard currentAppleDeletionNonce != nil else {
+                throw AuthFlowError.missingAppleNonce
+            }
+
+            await deleteAccount(appleAuthorizationCode: authorizationCodeString)
+        } catch {
+            authError = error.localizedDescription
+        }
+        currentAppleDeletionNonce = nil
     }
 
     func signInWithGoogle() {
@@ -216,6 +270,7 @@ final class SettingsViewModel: ObservableObject {
     }
 
     func clearAllData() async throws {
+        NotificationService.cancelAll()
         let db = Firestore.firestore().collection("users").document(userId)
         for colName in ["peptides", "peptideStock", "activeVials", "injectionLogs", "schedules", "blends"] {
             let snap = try await db.collection(colName).getDocuments()
@@ -224,6 +279,27 @@ final class SettingsViewModel: ObservableObject {
             }
         }
         try await db.delete()
+    }
+
+    func deleteAccount(appleAuthorizationCode: String? = nil) async {
+        guard !isDeletingAccount else { return }
+        isDeletingAccount = true
+        authError = nil
+        authMessage = nil
+
+        defer { isDeletingAccount = false }
+
+        do {
+            if let appleAuthorizationCode {
+                try await FirebaseManager.shared.revokeAppleToken(authorizationCode: appleAuthorizationCode)
+            }
+            try await clearAllData()
+            try await FirebaseManager.shared.deleteCurrentUser()
+            OnboardingCoordinator.resetOnboarding()
+            authMessage = "Account deleted."
+        } catch {
+            authError = "Unable to delete account. Sign in again, then retry from Settings."
+        }
     }
 
     func saveSchedule(for peptide: Peptide, frequency: DoseFrequency, doseAmount: Double, doseUnit: DoseUnit, timeSeconds: Int) async throws {
@@ -251,6 +327,7 @@ final class SettingsViewModel: ObservableObject {
         var newSched = sched
         newSched.id = schedId
         let slots = NotificationService.slotsPerPeptide(activePeptideCount: max(1, schedules.filter(\.isActive).count + 1))
+        notificationsEnabled = await NotificationService.requestPermission()
         let ids = await NotificationService.schedule(for: newSched, peptideName: peptide.name, slotsPerPeptide: slots)
         try await scheduleRepo.updateNotificationIds(ids, for: schedId)
     }

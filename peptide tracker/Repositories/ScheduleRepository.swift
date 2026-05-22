@@ -28,8 +28,13 @@ final class ScheduleRepository {
     }
 
     func listen(onChange: @escaping ([Schedule]) -> Void) -> ListenerRegistration {
-        collection.whereField("isActive", isEqualTo: true).addSnapshotListener { snap, _ in
-            let schedules = snap?.documents.compactMap { try? $0.data(as: Schedule.self) } ?? []
+        collection.whereField("isActive", isEqualTo: true).addSnapshotListener(includeMetadataChanges: true) { snap, error in
+            guard error == nil else {
+                onChange([])
+                return
+            }
+            guard let snap, FirestoreSnapshotPolicy.shouldRenderSnapshot(snap.metadata) else { return }
+            let schedules = snap.documents.compactMap { try? $0.data(as: Schedule.self) }
             onChange(schedules)
         }
     }

@@ -4,6 +4,8 @@ import AuthenticationServices
 struct SettingsView: View {
     @StateObject var viewModel: SettingsViewModel
     @State private var showClearAlert = false
+    @State private var showDeleteAccountAlert = false
+    @State private var showAppleDeletionSheet = false
     @State private var showEmailUpgrade = false
 
     var body: some View {
@@ -52,13 +54,42 @@ struct SettingsView: View {
                                 .foregroundColor(viewModel.notificationsEnabled ? .green : .orange)
                                 .font(.caption)
                         }
+                        if !viewModel.notificationsEnabled {
+                            Button {
+                                Task { await viewModel.requestNotificationPermission() }
+                            } label: {
+                                Label("Enable Dose Reminders", systemImage: "bell.badge")
+                            }
+                        }
+                        Text("Reminder alerts use private wording and do not include compound names, dose amounts, or injection instructions.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
-                    Section("Data") {
+                    Section {
                         Button(role: .destructive) {
                             showClearAlert = true
                         } label: {
-                            Label("Clear All Data", systemImage: "trash")
+                            Label("Clear Tracking Data", systemImage: "trash")
                         }
+
+                        Button(role: .destructive) {
+                            showDeleteAccountAlert = true
+                        } label: {
+                            Label(viewModel.isDeletingAccount ? "Deleting Account..." : "Delete Account", systemImage: "person.crop.circle.badge.xmark")
+                        }
+                        .disabled(viewModel.isDeletingAccount)
+                    } header: {
+                        Text("Data")
+                    } footer: {
+                        Text("Account deletion removes your app account and associated tracking data. If you use Sign in with Apple, Apple will ask you to authorize token revocation first.")
+                    }
+                    Section("Legal") {
+                        NavigationLink("Medical Disclaimer") {
+                            LegalNoticeView()
+                        }
+                        Link("Privacy Policy", destination: LegalContent.privacyPolicyURL)
+                        Link("Terms of Service", destination: LegalContent.termsOfServiceURL)
+                        Link("Support", destination: LegalContent.supportURL)
                     }
                     Section("About") {
                         HStack {
@@ -82,9 +113,91 @@ struct SettingsView: View {
             } message: {
                 Text("This will permanently delete all peptides, vials, injection logs, and schedules. This cannot be undone.")
             }
+            .alert("Delete Account", isPresented: $showDeleteAccountAlert) {
+                Button("Delete Account", role: .destructive) {
+                    if viewModel.requiresAppleAuthorizationForDeletion {
+                        showAppleDeletionSheet = true
+                    } else {
+                        Task { await viewModel.deleteAccount() }
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This permanently deletes your Peptide Tracker account and associated tracking data. This cannot be undone.")
+            }
+            .sheet(isPresented: $showAppleDeletionSheet) {
+                AppleAccountDeletionSheet(viewModel: viewModel)
+            }
         }
         .onAppear { viewModel.startListening() }
         .onDisappear { viewModel.stopListening() }
+    }
+}
+
+private struct LegalNoticeView: View {
+    var body: some View {
+        List {
+            Section("Medical Disclaimer") {
+                Text(LegalContent.medicalDisclaimer)
+            }
+            Section("Methodology") {
+                Text("Half-life charts estimate remaining amount from user-entered dose logs with exponential decay. They are for personal record keeping only and should not be used to diagnose, treat, or change a medical plan.")
+            }
+            Section("Links") {
+                Link("Privacy Policy", destination: LegalContent.privacyPolicyURL)
+                Link("Terms of Service", destination: LegalContent.termsOfServiceURL)
+                Link("Support", destination: LegalContent.supportURL)
+            }
+        }
+        .navigationTitle("Legal")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private struct AppleAccountDeletionSheet: View {
+    @ObservedObject var viewModel: SettingsViewModel
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 18) {
+                Text("Authorize account deletion")
+                    .font(.title2.weight(.bold))
+
+                Text("Apple requires a fresh authorization code before Peptide Tracker can revoke your Sign in with Apple token and delete your account.")
+                    .font(.body)
+                    .foregroundColor(.secondary)
+
+                SignInWithAppleButton(.continue) { request in
+                    viewModel.prepareAppleAccountDeletion(request)
+                } onCompletion: { result in
+                    Task {
+                        await viewModel.handleAppleAccountDeletion(result)
+                        if viewModel.authError == nil {
+                            dismiss()
+                        }
+                    }
+                }
+                .signInWithAppleButtonStyle(.black)
+                .frame(height: 50)
+
+                if let authError = viewModel.authError {
+                    Text(authError)
+                        .font(.caption)
+                        .foregroundColor(.orange)
+                }
+
+                Spacer()
+            }
+            .padding()
+            .navigationTitle("Delete Account")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
+        }
     }
 }
 

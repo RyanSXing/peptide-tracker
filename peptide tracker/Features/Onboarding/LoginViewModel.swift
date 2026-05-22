@@ -14,6 +14,7 @@ final class LoginViewModel: ObservableObject {
     @Published var showEmailInputSheet = false
 
     private let firebase: FirebaseManager
+    private var currentAppleNonce: String?
 
     convenience init() {
         self.init(firebase: .shared)
@@ -24,7 +25,14 @@ final class LoginViewModel: ObservableObject {
     }
 
     func signInWithApple(request: ASAuthorizationAppleIDRequest) {
-        request.requestedScopes = [.fullName, .email]
+        do {
+            let nonce = try firebase.makeAppleNonce()
+            currentAppleNonce = nonce
+            request.requestedScopes = [.fullName, .email]
+            request.nonce = firebase.sha256(nonce)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     func handleAppleSignIn(_ result: Result<ASAuthorization, Error>) async {
@@ -42,12 +50,8 @@ final class LoginViewModel: ObservableObject {
             }
 
             let token = String(data: identityToken, encoding: .utf8) ?? ""
-            let nonce: String
-
-            do {
-                nonce = try firebase.makeAppleNonce()
-            } catch {
-                errorMessage = "Could not prepare Apple sign-in securely. Please try again."
+            guard let nonce = currentAppleNonce else {
+                errorMessage = "The Apple sign-in request expired. Please try again."
                 return
             }
 
@@ -64,6 +68,8 @@ final class LoginViewModel: ObservableObject {
         case .failure:
             errorMessage = "Apple sign-in was cancelled or failed."
         }
+
+        currentAppleNonce = nil
     }
 
     func signInWithGoogle() {

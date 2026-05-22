@@ -27,8 +27,13 @@ final class BlendRepository {
     }
 
     func listen(onChange: @escaping ([Blend]) -> Void) -> ListenerRegistration {
-        collection.addSnapshotListener { snap, _ in
-            let blends = snap?.documents.compactMap { try? $0.data(as: Blend.self) } ?? []
+        collection.addSnapshotListener(includeMetadataChanges: true) { snap, error in
+            guard error == nil else {
+                onChange([])
+                return
+            }
+            guard let snap, FirestoreSnapshotPolicy.shouldRenderSnapshot(snap.metadata) else { return }
+            let blends = snap.documents.compactMap { try? $0.data(as: Blend.self) }
             onChange(blends)
         }
     }
